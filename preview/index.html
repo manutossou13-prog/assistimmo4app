@@ -1,0 +1,1626 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Assistimmo AI — Aperçu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tenor+Sans&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F5F2E9; --cream-2:#FAF7EF; --cream-3:#EDE6D4;
+    --taupe:#9B8A72; --taupe-d:#7a6b56; --taupe-l:#B9A98F;
+    --gold:#C5A979;
+    --ink:#0C0C0C; --ink-2:#2A2722; --muted:#6b6b6b; --line:#e8e4dc;
+    --navy:#1B2A4E; --lime:#C6F432;
+    --t-tom:#5BC0BE; --t-nora:#9B6BFF; --t-sarah:#E94F8A; --t-emma:#F59E5B;
+    --t-stella:#F0C44A; --t-franck:#2FB8A4; --t-hugo:#5DBB6A; --t-ines:#E25C7A;
+    --t-gabriel:#5681E0; --t-lea:#A55BE0; --t-oscar:#1B2A4E;
+    --r-sm:8px; --r:14px; --r-lg:24px; --r-pill:999px;
+    --shadow-1:0 2px 14px rgba(12,12,12,.05);
+    --shadow-2:0 14px 32px rgba(155,138,114,.18);
+    --shadow-3:0 30px 80px rgba(12,12,12,.10);
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    font-size:14.5px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(700px 500px at 12% -5%, rgba(155,138,114,.18), transparent 60%),
+      radial-gradient(900px 600px at 95% 10%, rgba(197,169,121,.12), transparent 60%),
+      radial-gradient(800px 700px at 60% 110%, rgba(27,42,78,.06), transparent 60%);
+  }
+  h1,h2,h3,h4{font-family:'Tenor Sans',serif; font-weight:400; letter-spacing:.01em; color:var(--ink)}
+  h1{font-size:42px; line-height:1.05; margin:0}
+  h2{font-size:28px; line-height:1.1; margin:0}
+  h3{font-size:20px; line-height:1.2; margin:0}
+  .mono{font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.02em}
+  .num{font-family:'JetBrains Mono',monospace; font-weight:500; color:var(--taupe)}
+  a{color:inherit; text-decoration:none}
+
+  /* ---------- LAYOUT ---------- */
+  .app{position:relative; z-index:1; min-height:100vh; display:grid; grid-template-columns:260px 1fr 340px}
+  .main{padding:0; display:flex; flex-direction:column; min-width:0}
+  .right{padding:24px 22px 24px 8px; border-left:1px solid var(--line); background:linear-gradient(180deg,var(--cream-2),var(--cream))}
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    background:rgba(245,242,233,.72);
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px;
+    padding:14px 28px;
+  }
+  .topbar .crumb{font-family:'Tenor Sans'; font-size:18px}
+  .topbar .crumb .dot{color:var(--taupe); margin:0 8px}
+  .search{
+    flex:1; max-width:560px; margin-left:8px;
+    display:flex; align-items:center; gap:10px;
+    background:rgba(255,255,255,.6);
+    border:1px solid var(--line); border-radius:var(--r-pill);
+    padding:9px 16px; font-size:13px; color:var(--muted);
+    cursor:text;
+  }
+  .search kbd{
+    margin-left:auto; font-family:'JetBrains Mono'; font-size:10.5px;
+    background:var(--cream-3); padding:2px 7px; border-radius:6px;
+    border:1px solid var(--line); color:var(--ink-2)
+  }
+  .top-actions{display:flex; align-items:center; gap:10px; margin-left:auto}
+  .icon-btn{
+    width:36px; height:36px; border-radius:var(--r-pill);
+    border:1px solid var(--line); background:rgba(255,255,255,.7);
+    display:grid; place-items:center; cursor:pointer; color:var(--ink-2);
+    transition:all .25s var(--ease);
+  }
+  .icon-btn:hover{background:#fff; box-shadow:var(--shadow-1)}
+  .icon-btn .pip{position:absolute; transform:translate(11px,-11px); width:8px; height:8px; background:var(--t-sarah); border-radius:50%; border:2px solid var(--cream-2)}
+  .topbar .me{
+    display:flex; align-items:center; gap:10px; padding:5px 14px 5px 5px;
+    border:1px solid var(--line); border-radius:var(--r-pill);
+    background:rgba(255,255,255,.7); cursor:pointer
+  }
+  .topbar .me .av{
+    width:28px; height:28px; border-radius:50%;
+    background:linear-gradient(135deg,var(--taupe),var(--taupe-d));
+    color:#fff; display:grid; place-items:center; font-weight:600; font-size:12px;
+  }
+  .topbar .me span{font-size:13px; font-weight:500}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    position:sticky; top:0; align-self:start; height:100vh;
+    border-right:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(245,242,233,.4));
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    padding:22px 16px; overflow-y:auto;
+  }
+  .brand{display:flex; align-items:center; gap:11px; padding:6px 8px 22px}
+  .brand .logo{
+    width:38px; height:38px; border-radius:10px;
+    background:linear-gradient(135deg,var(--cream-2),var(--cream-3));
+    display:grid; place-items:center; color:var(--taupe-d);
+    box-shadow:var(--shadow-2); border:1px solid rgba(155,138,114,.2);
+  }
+  .brand .logo svg{width:24px; height:24px}
+  .brand .name{font-family:'Tenor Sans'; font-size:19px; line-height:1; color:var(--taupe-d); letter-spacing:.01em}
+  .brand .name small{display:block; font-family:'DM Sans'; font-size:9.5px; color:var(--muted); letter-spacing:.16em; text-transform:uppercase; margin-top:4px; font-weight:400}
+
+  .nav-label{
+    font-family:'JetBrains Mono'; font-size:10px; letter-spacing:.18em;
+    color:var(--muted); text-transform:uppercase;
+    padding:14px 10px 8px;
+  }
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:9px 10px; border-radius:10px; cursor:pointer;
+    color:var(--ink-2); font-size:13.5px; font-weight:500;
+    transition:all .2s var(--ease); position:relative;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.7)}
+  .nav-item.active{background:#fff; box-shadow:var(--shadow-1); color:var(--ink)}
+  .nav-item.active::before{
+    content:""; position:absolute; left:-16px; top:6px; bottom:6px; width:3px;
+    background:var(--taupe); border-radius:0 3px 3px 0;
+  }
+  .nav-item .ic{
+    width:18px; height:18px; flex-shrink:0; opacity:.7;
+  }
+  .nav-item.active .ic{opacity:1}
+  .nav-item .badge{
+    margin-left:auto; font-family:'JetBrains Mono'; font-size:10px;
+    background:var(--cream-3); padding:2px 7px; border-radius:var(--r-pill);
+    color:var(--ink-2);
+  }
+  .nav-item .badge.lime{background:var(--lime); color:var(--ink)}
+  .nav-item .badge.dot{background:transparent; color:var(--muted); padding:0; font-size:10px}
+
+  /* agent list */
+  .agent-row{
+    display:flex; align-items:center; gap:10px;
+    padding:7px 10px; border-radius:10px; cursor:pointer;
+    transition:all .2s var(--ease); position:relative;
+  }
+  .agent-row:hover{background:rgba(255,255,255,.7)}
+  .agent-row.active{background:#fff; box-shadow:var(--shadow-1)}
+  .av{
+    width:28px; height:28px; border-radius:50%;
+    display:grid; place-items:center; color:#fff; font-weight:600; font-size:11px;
+    flex-shrink:0; box-shadow:0 2px 6px rgba(12,12,12,.12);
+    font-family:'DM Sans';
+    letter-spacing:.02em;
+  }
+  .av.lg{width:44px; height:44px; font-size:15px}
+  .av.xl{width:64px; height:64px; font-size:22px}
+  .av.xxl{width:96px; height:96px; font-size:32px}
+  .av.tom{background:linear-gradient(135deg,var(--t-tom),#3a9c9a)}
+  .av.nora{background:linear-gradient(135deg,var(--t-nora),#6a3fcf)}
+  .av.sarah{background:linear-gradient(135deg,var(--t-sarah),#b13668)}
+  .av.emma{background:linear-gradient(135deg,var(--t-emma),#c47533)}
+  .av.stella{background:linear-gradient(135deg,var(--t-stella),#c69b22); color:#3a2e10}
+  .av.franck{background:linear-gradient(135deg,var(--t-franck),#1f8a78)}
+  .av.hugo{background:linear-gradient(135deg,var(--t-hugo),#3a8e47)}
+  .av.ines{background:linear-gradient(135deg,var(--t-ines),#b13a55)}
+  .av.gabriel{background:linear-gradient(135deg,var(--t-gabriel),#3258ad)}
+  .av.lea{background:linear-gradient(135deg,var(--t-lea),#7a3fb0)}
+  .av.oscar{background:linear-gradient(135deg,var(--t-oscar),#0f1a36); position:relative}
+  .av.oscar::after{
+    content:""; position:absolute; inset:-3px;
+    border:1.5px solid var(--gold); border-radius:50%; opacity:.55;
+  }
+  .agent-row .info{display:flex; flex-direction:column; min-width:0; flex:1}
+  .agent-row .info b{font-size:13px; font-weight:600; color:var(--ink); line-height:1.2}
+  .agent-row .info small{font-size:11px; color:var(--muted); line-height:1.2}
+  .agent-row .stat{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--t-hugo); flex-shrink:0;
+    box-shadow:0 0 0 3px rgba(93,187,106,.15);
+  }
+  .agent-row .stat.beta{background:var(--t-stella); box-shadow:0 0 0 3px rgba(240,196,74,.18)}
+  .agent-row .stat.soon{background:var(--muted); box-shadow:none; opacity:.4}
+
+  /* ---------- VIEWS ---------- */
+  .view{padding:32px 36px 80px; display:none; max-width:1100px}
+  .view.show{display:block; animation:fade .35s var(--ease)}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  .view-head{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:28px}
+  .view-head .num{display:block; margin-bottom:6px}
+  .view-head h1{font-size:38px}
+  .view-head p{margin:8px 0 0; color:var(--muted); max-width:560px}
+  .actions{display:flex; gap:10px; flex-shrink:0}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:11px 20px; border-radius:var(--r-pill);
+    font-family:'DM Sans'; font-weight:500; font-size:13.5px;
+    border:1px solid transparent; cursor:pointer;
+    transition:all .35s var(--ease);
+  }
+  .btn-primary{background:var(--ink); color:var(--cream); box-shadow:0 12px 28px rgba(12,12,12,.18)}
+  .btn-primary:hover{background:var(--ink-2); transform:translateY(-1px); box-shadow:0 18px 38px rgba(12,12,12,.22)}
+  .btn-taupe{background:var(--taupe); color:#fff; box-shadow:0 12px 28px rgba(155,138,114,.35)}
+  .btn-taupe:hover{background:var(--taupe-d)}
+  .btn-outline{background:transparent; color:var(--ink); border-color:var(--ink); }
+  .btn-outline:hover{background:var(--ink); color:var(--cream)}
+  .btn-ghost{background:rgba(255,255,255,.6); border:1px solid var(--line); color:var(--ink-2)}
+  .btn-ghost:hover{background:#fff}
+
+  /* cards */
+  .card{
+    background:rgba(255,255,255,.65);
+    border:1px solid var(--line); border-radius:var(--r-lg);
+    padding:22px; backdrop-filter:blur(8px);
+    transition:all .35s var(--ease);
+    position:relative; overflow:hidden;
+  }
+  .card.hover:hover{transform:translateY(-2px); box-shadow:var(--shadow-3); background:#fff}
+  .card.flat{background:#fff; border-color:var(--line)}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:14px}
+  .grid-2{display:grid; grid-template-columns:repeat(2,1fr); gap:18px}
+  .stack{display:flex; flex-direction:column; gap:14px}
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 11px; border-radius:var(--r-pill);
+    font-size:11.5px; font-weight:500;
+    background:var(--cream-3); color:var(--ink-2);
+  }
+  .pill.taupe{background:var(--taupe); color:#fff}
+  .pill.outline{background:transparent; border:1px solid var(--line); color:var(--ink-2)}
+  .pill.lime{background:var(--lime); color:var(--ink)}
+  .pill.gold{background:rgba(197,169,121,.2); color:var(--taupe-d); border:1px solid rgba(197,169,121,.4)}
+  .pill.live{background:rgba(93,187,106,.15); color:#2a6e36}
+  .pill.live::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--t-hugo); margin-right:2px; box-shadow:0 0 0 3px rgba(93,187,106,.2)}
+  .pill.beta{background:rgba(240,196,74,.2); color:#7d5e08}
+  .pill.soon{background:rgba(107,107,107,.12); color:var(--muted)}
+
+  .module-pill{
+    display:inline-flex; padding:3px 10px; border-radius:var(--r-pill);
+    font-family:'JetBrains Mono'; font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; background:var(--cream-3); color:var(--ink-2)
+  }
+
+  /* ---------- DASHBOARD CHAT ---------- */
+  .hero{
+    background:linear-gradient(135deg,var(--cream-2) 0%,#fff 50%,var(--cream-3) 110%);
+    border:1px solid var(--line); border-radius:var(--r-lg);
+    padding:30px 32px; position:relative; overflow:hidden;
+    box-shadow:var(--shadow-1);
+  }
+  .hero::before{
+    content:""; position:absolute; right:-80px; top:-80px; width:300px; height:300px;
+    background:radial-gradient(closest-side,rgba(155,138,114,.20),transparent 70%);
+  }
+  .hero h1{font-size:34px; line-height:1.05}
+  .hero p{margin:10px 0 0; color:var(--muted); max-width:580px}
+  .hero .quick{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+  .hero .qq{
+    background:rgba(255,255,255,.85); border:1px solid var(--line);
+    padding:8px 14px; border-radius:var(--r-pill); font-size:12.5px;
+    cursor:pointer; transition:all .25s var(--ease); color:var(--ink-2);
+    backdrop-filter:blur(6px);
+  }
+  .hero .qq:hover{background:#fff; border-color:var(--taupe); transform:translateY(-1px)}
+
+  .composer{
+    margin-top:22px;
+    background:#fff; border:1px solid var(--line); border-radius:18px;
+    padding:14px 16px; box-shadow:var(--shadow-1);
+    display:flex; align-items:flex-start; gap:12px;
+  }
+  .composer .av{flex-shrink:0}
+  .composer .field{
+    flex:1; min-height:46px;
+    border:none; outline:none; resize:none; font:inherit;
+    color:var(--ink); background:transparent;
+    padding:9px 0;
+  }
+  .composer .field::placeholder{color:var(--muted)}
+  .composer .send{
+    background:var(--ink); color:var(--cream); width:38px; height:38px;
+    border-radius:50%; border:none; cursor:pointer;
+    display:grid; place-items:center; align-self:flex-end;
+    transition:all .3s var(--ease);
+  }
+  .composer .send:hover{background:var(--taupe-d); transform:scale(1.05)}
+  .composer-tools{display:flex; gap:6px; align-self:flex-end; padding-bottom:5px}
+  .composer-tools .tool{
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:#fff; cursor:pointer; display:grid; place-items:center; color:var(--muted);
+  }
+
+  /* chat messages */
+  .conv{margin-top:24px; display:flex; flex-direction:column; gap:18px}
+  .msg{display:flex; gap:14px; align-items:flex-start}
+  .msg.user{justify-content:flex-end}
+  .msg.user .bubble{
+    background:var(--ink); color:var(--cream); border-radius:18px 18px 6px 18px;
+    padding:13px 18px; max-width:75%;
+  }
+  .msg .bubble{
+    background:#fff; border:1px solid var(--line);
+    border-radius:18px 18px 18px 6px;
+    padding:14px 18px; max-width:78%;
+    box-shadow:var(--shadow-1);
+  }
+  .msg .bubble p{margin:0 0 6px}
+  .msg .bubble p:last-child{margin-bottom:0}
+  .plan{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px; border-radius:var(--r-pill);
+    background:linear-gradient(135deg,rgba(27,42,78,.06),rgba(155,138,114,.10));
+    border:1px solid rgba(27,42,78,.10);
+    font-size:12.5px; color:var(--ink-2); width:fit-content;
+  }
+  .plan .av{width:22px; height:22px; font-size:9px}
+  .plan .arrow{color:var(--muted)}
+
+  .deliverable{
+    margin-top:10px; padding:14px; border-radius:14px;
+    border:1px solid var(--line); background:linear-gradient(180deg,#fff,var(--cream-2));
+  }
+  .deliverable .dh{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+  .deliverable .dh b{font-size:13px}
+  .deliverable .stats{display:flex; gap:18px; margin:10px 0; flex-wrap:wrap}
+  .deliverable .stat-num{font-family:'Tenor Sans'; font-size:24px; line-height:1}
+  .deliverable .stat-lab{font-size:10.5px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-top:3px}
+  .candidate{
+    display:grid; grid-template-columns:36px 1fr auto; gap:10px; align-items:center;
+    padding:9px 12px; border-radius:10px; background:rgba(245,242,233,.6);
+    margin-top:6px; border:1px solid var(--line);
+  }
+  .candidate .rank{font-family:'JetBrains Mono'; color:var(--taupe); font-size:12px}
+  .candidate b{font-size:13px}
+  .candidate small{color:var(--muted); font-size:11px; display:block}
+  .candidate .scr{font-family:'Tenor Sans'; font-size:18px; color:var(--ink)}
+  .candidate.top{background:linear-gradient(90deg,rgba(197,169,121,.15),rgba(155,138,114,.08)); border-color:rgba(197,169,121,.4)}
+
+  .next-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+  .next-actions .qq{
+    background:rgba(255,255,255,.85); border:1px solid var(--line);
+    padding:7px 12px; border-radius:var(--r-pill); font-size:12px;
+    cursor:pointer; color:var(--ink-2);
+  }
+  .next-actions .qq:hover{background:#fff; border-color:var(--taupe)}
+
+  /* letter preview */
+  .letter{
+    background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:20px 24px;
+    font-size:13px; line-height:1.65;
+    box-shadow:var(--shadow-1); margin-top:8px;
+  }
+  .letter .meta{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; margin-bottom:14px}
+  .letter h4{margin:0 0 10px; font-family:'Tenor Sans'; font-size:16px}
+
+  /* ---------- RIGHT RAIL ---------- */
+  .rail-block{margin-bottom:22px}
+  .rail-title{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono'; font-size:10px; letter-spacing:.18em;
+    color:var(--muted); text-transform:uppercase; margin-bottom:10px;
+  }
+  .rail-title a{color:var(--taupe); cursor:pointer}
+  .feed-item{
+    display:flex; gap:11px; align-items:flex-start;
+    padding:11px 12px; border-radius:12px; cursor:pointer;
+    transition:all .2s var(--ease); margin-bottom:4px;
+  }
+  .feed-item:hover{background:rgba(255,255,255,.7)}
+  .feed-item .info{font-size:12.5px; line-height:1.4; min-width:0}
+  .feed-item .info b{display:block; font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .feed-item .info small{color:var(--muted); font-size:11px}
+  .feed-item .when{
+    margin-left:auto; font-family:'JetBrains Mono'; font-size:10px;
+    color:var(--muted); flex-shrink:0;
+  }
+  .task{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    background:rgba(255,255,255,.6); margin-bottom:6px;
+    border:1px solid var(--line); font-size:12.5px;
+  }
+  .task .chk{
+    width:16px; height:16px; border-radius:5px; border:1.5px solid var(--taupe);
+    flex-shrink:0; cursor:pointer;
+  }
+  .task .due{margin-left:auto; font-family:'JetBrains Mono'; font-size:10px; color:var(--muted)}
+  .task.done .chk{background:var(--ink); border-color:var(--ink)}
+  .task.done span{text-decoration:line-through; color:var(--muted)}
+  .task.urgent .due{color:var(--t-sarah)}
+
+  /* ---------- AGENTS GALLERY ---------- */
+  .team-hero{
+    background:linear-gradient(135deg,var(--ink) 0%,#13182b 50%,var(--ink) 100%);
+    color:var(--cream);
+    border-radius:var(--r-lg);
+    padding:40px 36px;
+    position:relative; overflow:hidden;
+    box-shadow:var(--shadow-3);
+  }
+  .team-hero::before{
+    content:""; position:absolute; right:-200px; top:-200px; width:500px; height:500px;
+    background:radial-gradient(closest-side,rgba(197,169,121,.20),transparent 70%);
+  }
+  .team-hero::after{
+    content:""; position:absolute; left:-150px; bottom:-150px; width:400px; height:400px;
+    background:radial-gradient(closest-side,rgba(155,138,114,.18),transparent 70%);
+  }
+  .team-hero h1{color:var(--cream); font-size:46px; line-height:1.05}
+  .team-hero p{color:rgba(245,242,233,.7); margin:14px 0 0; max-width:580px; font-size:15px}
+  .team-hero .num{color:var(--gold)}
+
+  .agent-card{
+    background:rgba(255,255,255,.7);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:22px; cursor:pointer;
+    transition:all .35s var(--ease);
+    position:relative; overflow:hidden;
+  }
+  .agent-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-3); background:#fff}
+  .agent-card .ac-head{display:flex; align-items:center; gap:14px; margin-bottom:14px}
+  .agent-card h3{font-size:19px; line-height:1; margin-bottom:4px}
+  .agent-card .role{font-size:11.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase}
+  .agent-card .desc{font-size:13px; color:var(--ink-2); line-height:1.5; min-height:54px}
+  .agent-card .ac-foot{display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid var(--line)}
+  .agent-card .ac-foot .module-pill{font-size:9.5px}
+
+  /* ---------- BIENS LIST ---------- */
+  .bien-row{
+    display:grid; grid-template-columns:60px 1fr 110px 110px 90px 80px;
+    gap:18px; align-items:center;
+    padding:14px 18px; border-radius:14px;
+    background:rgba(255,255,255,.6);
+    border:1px solid var(--line);
+    margin-bottom:8px; cursor:pointer;
+    transition:all .25s var(--ease);
+  }
+  .bien-row:hover{background:#fff; box-shadow:var(--shadow-2); transform:translateX(2px)}
+  .bien-thumb{
+    width:60px; height:60px; border-radius:10px;
+    background:linear-gradient(135deg,var(--cream-3),var(--taupe-l));
+    position:relative; overflow:hidden;
+  }
+  .bien-thumb.b1{background:linear-gradient(135deg,#c4b59c,#7a6b56)}
+  .bien-thumb.b2{background:linear-gradient(135deg,#a8b4c8,#5681E0)}
+  .bien-thumb.b3{background:linear-gradient(135deg,#d8c8a8,#9B8A72)}
+  .bien-thumb.b4{background:linear-gradient(135deg,#e0c4d0,#a55ba0)}
+  .bien-row .addr{font-size:13.5px; font-weight:500}
+  .bien-row .addr small{display:block; color:var(--muted); font-size:11.5px; font-weight:400; margin-top:2px}
+  .bien-row .col{display:flex; flex-direction:column}
+  .bien-row .col b{font-size:13px; font-family:'Tenor Sans'}
+  .bien-row .col small{font-size:10.5px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase}
+  .dpe{
+    display:inline-grid; place-items:center; width:30px; height:30px;
+    border-radius:8px; font-weight:600; font-size:13px;
+    color:#fff;
+  }
+  .dpe.A{background:#0d8a4f} .dpe.B{background:#3aa15c} .dpe.C{background:#a4c43d}
+  .dpe.D{background:#f0c44a; color:#3a2e10} .dpe.E{background:#e88f2c}
+  .dpe.F{background:#d65c2c} .dpe.G{background:#b13818}
+  .score-bar{
+    width:80px; height:6px; background:var(--cream-3); border-radius:var(--r-pill); overflow:hidden;
+  }
+  .score-bar i{display:block; height:100%; background:linear-gradient(90deg,var(--t-hugo),var(--gold)); border-radius:var(--r-pill)}
+  .score-bar.low i{background:linear-gradient(90deg,var(--t-emma),var(--t-sarah))}
+
+  /* ---------- BIEN DETAIL ---------- */
+  .bien-hero{
+    display:grid; grid-template-columns:300px 1fr; gap:28px; margin-bottom:28px;
+    background:linear-gradient(135deg,var(--cream-2),var(--cream-3));
+    border:1px solid var(--line); border-radius:var(--r-lg);
+    padding:24px; position:relative; overflow:hidden;
+  }
+  .bien-hero .ph{
+    height:220px; border-radius:14px;
+    background:linear-gradient(135deg,#9B8A72 0%,#7a6b56 70%,#5b4f40 100%);
+    position:relative; overflow:hidden;
+    box-shadow:var(--shadow-2);
+  }
+  .bien-hero .ph::before{
+    content:"📷"; position:absolute; inset:0; display:grid; place-items:center;
+    font-size:42px; opacity:.4;
+  }
+  .bien-hero .ph .ovr{
+    position:absolute; bottom:10px; left:10px; padding:5px 10px;
+    background:rgba(12,12,12,.7); color:#fff; border-radius:var(--r-pill); font-size:11px;
+    font-family:'JetBrains Mono';
+  }
+  .bien-hero h2{font-size:26px; margin-bottom:6px}
+  .bien-hero .sub{color:var(--muted); margin-bottom:18px; font-size:14px}
+  .specs{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:16px 0}
+  .spec{padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.7)}
+  .spec b{font-family:'Tenor Sans'; font-size:20px; line-height:1; display:block; margin-bottom:3px}
+  .spec small{font-size:10.5px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase}
+  .tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:22px}
+  .tab{
+    padding:11px 18px; cursor:pointer; font-size:13.5px; font-weight:500; color:var(--muted);
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:all .2s var(--ease);
+  }
+  .tab.active{color:var(--ink); border-color:var(--ink)}
+  .tab:hover:not(.active){color:var(--ink-2)}
+
+  /* ---------- KPI ---------- */
+  .kpi-tile{
+    background:rgba(255,255,255,.8); border:1px solid var(--line);
+    border-radius:18px; padding:22px;
+  }
+  .kpi-tile .lab{font-size:11.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase}
+  .kpi-tile .val{font-family:'Tenor Sans'; font-size:38px; line-height:1.05; margin:8px 0 4px}
+  .kpi-tile .delta{font-size:12px; font-weight:500}
+  .kpi-tile .delta.up{color:#2a6e36}
+  .kpi-tile .delta.dn{color:#b13818}
+  .kpi-tile .target{font-size:11px; color:var(--muted); margin-top:6px}
+  .kpi-tile .bars{display:flex; gap:5px; align-items:flex-end; height:50px; margin-top:14px}
+  .kpi-tile .bars i{
+    flex:1; background:var(--taupe-l); border-radius:3px 3px 0 0; min-height:6px;
+    transition:all .3s;
+  }
+  .kpi-tile .bars i.now{background:var(--ink)}
+
+  .alert-card{
+    display:flex; gap:14px; padding:16px 18px; border-radius:14px;
+    background:rgba(255,255,255,.7); border:1px solid var(--line);
+    border-left:3px solid var(--t-stella);
+    margin-bottom:8px;
+  }
+  .alert-card.red{border-left-color:var(--t-sarah)}
+  .alert-card.green{border-left-color:var(--t-hugo)}
+  .alert-card .body{flex:1}
+  .alert-card .body b{font-size:13.5px; display:block; margin-bottom:3px}
+  .alert-card .body p{font-size:12.5px; color:var(--muted); margin:0}
+
+  /* ---------- DOCUMENTS ---------- */
+  .doc-row{
+    display:grid; grid-template-columns:50px 1fr 110px 100px 90px 90px;
+    gap:14px; align-items:center;
+    padding:13px 18px; border-radius:14px;
+    background:rgba(255,255,255,.6); border:1px solid var(--line);
+    margin-bottom:6px; cursor:pointer; transition:all .2s var(--ease);
+  }
+  .doc-row:hover{background:#fff; box-shadow:var(--shadow-1)}
+  .doc-icon{
+    width:42px; height:50px; border-radius:6px;
+    background:linear-gradient(135deg,#fff,var(--cream-2));
+    border:1px solid var(--line); position:relative;
+    display:grid; place-items:center; font-family:'JetBrains Mono'; font-size:9px; color:var(--taupe);
+  }
+  .doc-icon::before{content:""; position:absolute; top:0; right:0; border-style:solid; border-width:0 8px 8px 0; border-color:transparent var(--cream-3) transparent transparent}
+
+  /* ---------- SETTINGS ---------- */
+  .module-card{
+    display:grid; grid-template-columns:auto 1fr auto; gap:18px; align-items:center;
+    padding:18px 22px; border-radius:16px;
+    background:rgba(255,255,255,.7); border:1px solid var(--line);
+    margin-bottom:10px;
+  }
+  .module-card.off{opacity:.55; background:transparent}
+  .module-icon{
+    width:48px; height:48px; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--cream-2),var(--cream-3));
+    color:var(--taupe-d); font-family:'Tenor Sans'; font-size:18px;
+  }
+  .module-card h4{margin:0; font-size:15px; font-family:'Tenor Sans'}
+  .module-card p{margin:3px 0 0; font-size:12.5px; color:var(--muted)}
+  .switch{
+    width:40px; height:22px; border-radius:var(--r-pill); background:var(--ink);
+    position:relative; cursor:pointer; transition:all .25s;
+  }
+  .switch.off{background:var(--cream-3)}
+  .switch::after{
+    content:""; position:absolute; left:21px; top:2px; width:18px; height:18px;
+    background:#fff; border-radius:50%; transition:all .25s;
+    box-shadow:0 2px 4px rgba(0,0,0,.15);
+  }
+  .switch.off::after{left:2px}
+
+  /* ---------- ICONS ---------- */
+  svg{stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+
+  /* responsive guard (basic, this is a preview) */
+  @media (max-width:1280px){
+    .app{grid-template-columns:240px 1fr}
+    .right{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ======================== SIDEBAR ======================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo" aria-label="Assistimmo">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M50 14 L18 84 L82 84 Z"/>
+          <path d="M50 50 L36 80 L36 84 M50 50 L64 80 L64 84"/>
+        </svg>
+      </div>
+      <div class="name">Assistimmo<small>Operating System immobilier</small></div>
+    </div>
+
+    <div class="nav-label" style="display:flex; align-items:center; justify-content:space-between"><span>Équipe IA</span><span class="mono" style="color:var(--taupe); font-size:9px">11 agents</span></div>
+    <div class="agent-row" data-agent="oscar">
+      <div class="av oscar">O</div>
+      <div class="info"><b>OSCAR</b><small>Orchestrateur</small></div>
+      <div class="stat"></div>
+    </div>
+    <div class="agent-row" data-agent="tom">
+      <div class="av tom">T</div>
+      <div class="info"><b>Tom</b><small>Enquêteur mandat</small></div>
+      <div class="stat"></div>
+    </div>
+    <div class="agent-row" data-agent="nora">
+      <div class="av nora">N</div>
+      <div class="info"><b>Nora</b><small>Mandats</small></div>
+      <div class="stat"></div>
+    </div>
+    <div class="agent-row" data-agent="sarah">
+      <div class="av sarah">S</div>
+      <div class="info"><b>Sarah</b><small>Copywriter</small></div>
+      <div class="stat"></div>
+    </div>
+    <div class="agent-row" data-agent="lea">
+      <div class="av lea">L</div>
+      <div class="info"><b>Léa</b><small>Comptes rendus</small></div>
+      <div class="stat"></div>
+    </div>
+    <div class="agent-row" data-agent="emma">
+      <div class="av emma">E</div>
+      <div class="info"><b>Emma</b><small>Présentations</small></div>
+      <div class="stat beta"></div>
+    </div>
+    <div class="agent-row" data-agent="stella">
+      <div class="av stella">St</div>
+      <div class="info"><b>Stella</b><small>Réseaux sociaux</small></div>
+      <div class="stat beta"></div>
+    </div>
+    <div class="agent-row" data-agent="franck">
+      <div class="av franck">F</div>
+      <div class="info"><b>Franck</b><small>Vidéaste IA</small></div>
+      <div class="stat beta"></div>
+    </div>
+    <div class="agent-row" data-agent="hugo">
+      <div class="av hugo">H</div>
+      <div class="info"><b>Hugo</b><small>Manager KPI</small></div>
+      <div class="stat beta"></div>
+    </div>
+    <div class="agent-row" data-agent="ines">
+      <div class="av ines">I</div>
+      <div class="info"><b>Inès</b><small>Recrutement</small></div>
+      <div class="stat soon"></div>
+    </div>
+    <div class="agent-row" data-agent="gabriel">
+      <div class="av gabriel">G</div>
+      <div class="info"><b>Gabriel</b><small>Finance</small></div>
+      <div class="stat soon"></div>
+    </div>
+
+    <div class="nav-label" style="margin-top:18px">Espaces</div>
+    <div class="nav-item active" data-view="chat">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0 9 9 0 0 1-13 8L3 21l1-5a9 9 0 0 1-1-4z"/></svg>
+      OSCAR <span class="badge lime">live</span>
+    </div>
+    <div class="nav-item" data-view="agents">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+      Mes agents <span class="badge">10</span>
+    </div>
+    <div class="nav-item" data-view="biens">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2z"/></svg>
+      Biens <span class="badge">24</span>
+    </div>
+    <div class="nav-item" data-view="crm">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM2 21a8 8 0 0 1 20 0"/></svg>
+      CRM Prospects <span class="badge">147</span>
+    </div>
+    <div class="nav-item" data-view="documents">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+      Documents <span class="badge">312</span>
+    </div>
+    <div class="nav-item" data-view="kpi">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10m6 11V6m6 15v-8"/></svg>
+      Pilotage KPI
+    </div>
+    <div class="nav-item" data-view="settings">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      Paramètres
+    </div>
+  </aside>
+
+  <!-- ======================== MAIN ======================== -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="crumb"><span id="bcRoot">Agence Foch</span><span class="dot">·</span><span id="bcView">OSCAR</span></div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Rechercher un bien, un mandat, un prospect…
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="top-actions">
+        <div class="icon-btn" title="Notifications" style="position:relative">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+          <span class="pip"></span>
+        </div>
+        <div class="icon-btn" title="Aide">
+          <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </div>
+        <div class="me">
+          <div class="av">MZ</div><span>Marie Z.</span>
+          <svg width="14" height="14" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================== VIEW : CHAT (default) =================== -->
+    <section class="view show" data-pane="chat">
+      <div class="hero">
+        <span class="num mono">01 — ESPACE OSCAR</span>
+        <h1 style="margin-top:8px">Bonjour Marie. <em style="font-style:normal; color:var(--taupe)">Que faisons-nous aujourd'hui&nbsp;?</em></h1>
+        <p>3&nbsp;mandats expirent cette semaine, 2&nbsp;visites au programme, et 8&nbsp;dossiers prospects sans relance depuis 14&nbsp;jours.</p>
+        <div class="quick">
+          <div class="qq" onclick="loadDemo('address')">🔍 Trouver l'adresse d'une annonce</div>
+          <div class="qq" onclick="loadDemo('mandate')">📜 Préparer un mandat exclusif</div>
+          <div class="qq" onclick="loadDemo('cr')">🎙 Résumer une visite (audio)</div>
+          <div class="qq">✉️ Courrier de boîtage</div>
+          <div class="qq">📊 Bilan du mois</div>
+        </div>
+
+        <div class="composer">
+          <div class="av oscar">O</div>
+          <textarea class="field" placeholder="Demandez à OSCAR — il identifiera les agents à activer…">Trouve l'adresse de ce bien : seloger.com/annonces/198421036  — et prépare-moi un courrier de boîtage si la fiabilité est bonne.</textarea>
+          <div class="composer-tools">
+            <div class="tool" title="Joindre un fichier"><svg width="14" height="14" viewBox="0 0 24 24"><path d="m21 12-9 9a5.6 5.6 0 0 1-8-8l9-9a4 4 0 0 1 5.6 5.6L9.7 18.5a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></div>
+            <div class="tool" title="Voix"><svg width="14" height="14" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+          </div>
+          <button class="send" title="Envoyer">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Conversation démo -->
+      <div class="conv">
+        <div class="msg user">
+          <div class="bubble">Trouve l'adresse de ce bien : seloger.com/annonces/198421036 — et prépare-moi un courrier de boîtage si la fiabilité est bonne.</div>
+        </div>
+
+        <div class="msg">
+          <div class="av oscar lg">O</div>
+          <div class="bubble" style="max-width:82%">
+            <div class="plan">
+              <span class="mono" style="color:var(--muted)">PLAN</span>
+              <div class="av tom">T</div><b style="font-weight:500">Tom</b> enquête
+              <span class="arrow">→</span>
+              <div class="av sarah">S</div><b style="font-weight:500">Sarah</b> rédige
+              <span class="pill outline" style="margin-left:6px">2 étapes · ~12&nbsp;s</span>
+            </div>
+
+            <div class="deliverable">
+              <div class="dh"><div class="av tom">T</div><b>Tom — Enquêteur mandat</b><span class="pill gold">Fiabilité 84&nbsp;%</span></div>
+              <p style="font-family:'Tenor Sans'; font-size:22px; margin:4px 0 2px; line-height:1.15">12 rue de l'Église, 75015 Paris</p>
+              <p style="margin:0; color:var(--muted); font-size:12.5px">Croisement DPE/ADEME, DVF, Cadastre, Street View, Vision LLM</p>
+
+              <div class="stats">
+                <div><div class="stat-num">62 m²</div><div class="stat-lab">Habitable</div></div>
+                <div><div class="stat-num">3</div><div class="stat-lab">pièces</div></div>
+                <div><div class="stat-num">D</div><div class="stat-lab">DPE 2023</div></div>
+                <div><div class="stat-num">690 k€</div><div class="stat-lab">Affiché</div></div>
+                <div><div class="stat-num">11 100 €/m²</div><div class="stat-lab">Cohérent secteur</div></div>
+              </div>
+
+              <div style="margin-top:10px">
+                <div class="candidate top">
+                  <div class="rank">01</div>
+                  <div><b>12 rue de l'Église, 75015</b><small>DPE D 2023 + 62m² — match unique ADEME · façade Street View ✓</small></div>
+                  <div class="scr">84%</div>
+                </div>
+                <div class="candidate">
+                  <div class="rank">02</div>
+                  <div><b>14 rue de l'Église, 75015</b><small>DPE proche, étage incohérent</small></div>
+                  <div class="scr" style="color:var(--muted)">62%</div>
+                </div>
+                <div class="candidate">
+                  <div class="rank">03</div>
+                  <div><b>8 rue Voisine, 75015</b><small>Surface OK, DPE différent</small></div>
+                  <div class="scr" style="color:var(--muted)">41%</div>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px">
+                <span class="pill live">Boîtage immédiat conseillé</span>
+                <span class="pill">Priorité commerciale haute</span>
+                <span class="pill outline">Mandat exclusif possible</span>
+              </div>
+            </div>
+
+            <div class="deliverable" style="margin-top:14px">
+              <div class="dh"><div class="av sarah">S</div><b>Sarah — Copywriter terrain</b><span class="pill outline">Framework PAS · ton direct chaleureux</span></div>
+              <div class="letter">
+                <div class="meta">Courrier de boîtage · 15<sup>e</sup> · Variante principale</div>
+                <p>Madame, Monsieur,</p>
+                <p>Vendre votre appartement dans le 15<sup>e</sup> en 2026, ce n'est plus aussi évident qu'il y a deux ans. Les délais s'allongent, les acheteurs négocient plus.</p>
+                <p>Notre équipe a accompagné <b>14 ventes dans le quartier</b> sur les 12 derniers mois — toutes au prix ou à -3 % maximum.</p>
+                <p>Si vous envisagez de vendre, je vous offre une estimation <b>sur place, sans engagement</b>, en 30 minutes.</p>
+                <p style="margin-top:18px">Marie LEFEBVRE — Agence Foch Paris 15<br><span style="color:var(--muted)">01 23 45 67 89 · marie@assistimo.fr</span></p>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap">
+                <span class="pill outline">+ 3 variantes (courte / premium / douce)</span>
+                <span class="pill outline">Séquence J+10 · J+21 · J+45</span>
+              </div>
+            </div>
+
+            <p style="margin-top:14px; font-size:13.5px"><b style="font-family:'Tenor Sans'">Synthèse&nbsp;</b>— bien identifié à 84&nbsp;%, prix marché cohérent, recommandation boîtage immédiat. 2&nbsp;livrables enregistrés au dossier.</p>
+
+            <div class="next-actions">
+              <div class="qq">📂 Ouvrir le dossier bien</div>
+              <div class="qq">🖨 Imprimer le courrier</div>
+              <div class="qq">📅 Planifier la tournée boîtage</div>
+              <div class="qq">📜 Préparer un mandat type au cas où</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : AGENTS =================== -->
+    <section class="view" data-pane="agents">
+      <div class="team-hero">
+        <span class="num mono">02 — ÉQUIPE IA</span>
+        <h1 style="margin-top:10px">Onze agents.<br/>Une seule conversation.</h1>
+        <p>OSCAR comprend votre demande, identifie les agents à activer, leur passe les bons inputs, et vous renvoie un livrable prêt à signer, imprimer ou publier.</p>
+        <div style="display:flex; gap:10px; margin-top:24px; flex-wrap:wrap">
+          <span class="pill" style="background:rgba(245,242,233,.12); color:var(--cream); border:1px solid rgba(245,242,233,.2)">5 agents en MVP</span>
+          <span class="pill" style="background:rgba(245,242,233,.12); color:var(--cream); border:1px solid rgba(245,242,233,.2)">4 en V2</span>
+          <span class="pill" style="background:rgba(245,242,233,.12); color:var(--cream); border:1px solid rgba(245,242,233,.2)">2 en V3</span>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top:24px">
+        <div class="agent-card" data-agent="oscar">
+          <div class="ac-head"><div class="av oscar lg">O</div><div><h3>OSCAR</h3><div class="role">Orchestrateur</div></div></div>
+          <p class="desc">Comprend, oriente, coordonne. Active le bon agent ou enchaîne plusieurs en chaîne.</p>
+          <div class="ac-foot"><span class="module-pill">core</span><span class="pill live">live</span></div>
+        </div>
+        <div class="agent-card" data-agent="tom">
+          <div class="ac-head"><div class="av tom lg">T</div><div><h3>Tom</h3><div class="role">Enquêteur mandat</div></div></div>
+          <p class="desc">Recherche d'adresse, analyse d'annonce et scoring d'opportunité de mandat.</p>
+          <div class="ac-foot"><span class="module-pill">prospection</span><span class="pill live">live</span></div>
+        </div>
+        <div class="agent-card" data-agent="nora">
+          <div class="ac-head"><div class="av nora lg">N</div><div><h3>Nora</h3><div class="role">Administratif & mandats</div></div></div>
+          <p class="desc">Génération mandats simple/exclusif, avenants, fiches vendeur, registre Hoguet.</p>
+          <div class="ac-foot"><span class="module-pill">mandats</span><span class="pill live">live</span></div>
+        </div>
+        <div class="agent-card" data-agent="sarah">
+          <div class="ac-head"><div class="av sarah lg">S</div><div><h3>Sarah</h3><div class="role">Copywriter terrain</div></div></div>
+          <p class="desc">Courriers, scripts d'appel, e-mails et messages de prospection multi-canal.</p>
+          <div class="ac-foot"><span class="module-pill">communication</span><span class="pill live">live</span></div>
+        </div>
+        <div class="agent-card" data-agent="lea">
+          <div class="ac-head"><div class="av lea lg">L</div><div><h3>Léa</h3><div class="role">Comptes rendus & relation client</div></div></div>
+          <p class="desc">Audio, notes ou transcripts → comptes rendus structurés, e-mails de suivi, tâches.</p>
+          <div class="ac-foot"><span class="module-pill">relation client</span><span class="pill live">live</span></div>
+        </div>
+        <div class="agent-card" data-agent="emma">
+          <div class="ac-head"><div class="av emma lg">E</div><div><h3>Emma</h3><div class="role">Présentations & pitch</div></div></div>
+          <p class="desc">Présentations, pitchs commerciaux et supports de réunion.</p>
+          <div class="ac-foot"><span class="module-pill">présentation</span><span class="pill beta">v2</span></div>
+        </div>
+        <div class="agent-card" data-agent="stella">
+          <div class="ac-head"><div class="av stella lg">St</div><div><h3>Stella</h3><div class="role">Réseaux sociaux</div></div></div>
+          <p class="desc">Posts, calendriers éditoriaux, hooks, carrousels et prompts visuels.</p>
+          <div class="ac-foot"><span class="module-pill">communication</span><span class="pill beta">v2</span></div>
+        </div>
+        <div class="agent-card" data-agent="franck">
+          <div class="ac-head"><div class="av franck lg">F</div><div><h3>Franck</h3><div class="role">Vidéaste IA</div></div></div>
+          <p class="desc">Scripts vidéo, avant/après, reels et animations immobilières.</p>
+          <div class="ac-foot"><span class="module-pill">communication</span><span class="pill beta">v2</span></div>
+        </div>
+        <div class="agent-card" data-agent="hugo">
+          <div class="ac-head"><div class="av hugo lg">H</div><div><h3>Hugo</h3><div class="role">Manager & analyste KPI</div></div></div>
+          <p class="desc">Suivi des KPI, analyse d'équipe et pilotage de la performance.</p>
+          <div class="ac-foot"><span class="module-pill">pilotage</span><span class="pill beta">v2</span></div>
+        </div>
+        <div class="agent-card" data-agent="ines">
+          <div class="ac-head"><div class="av ines lg">I</div><div><h3>Inès</h3><div class="role">Recrutement immobilier</div></div></div>
+          <p class="desc">Chasse de profils, fiches de poste, scoring CV et marque employeur.</p>
+          <div class="ac-foot"><span class="module-pill">recrutement</span><span class="pill soon">v3</span></div>
+        </div>
+        <div class="agent-card" data-agent="gabriel">
+          <div class="ac-head"><div class="av gabriel lg">G</div><div><h3>Gabriel</h3><div class="role">Pilote financier</div></div></div>
+          <p class="desc">Analyse des charges, rentabilité, optimisation et courriers de résiliation.</p>
+          <div class="ac-foot"><span class="module-pill">finance</span><span class="pill soon">v3</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : BIENS =================== -->
+    <section class="view" data-pane="biens">
+      <div class="view-head">
+        <div>
+          <span class="num mono">03 — PORTEFEUILLE</span>
+          <h1>Biens</h1>
+          <p>24 biens suivis par Tom — 8 mandats actifs, 11 prospects chauds, 5 estimations en cours.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost"><svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M10 18h4"/></svg>Filtrer</button>
+          <button class="btn btn-primary">+ Nouveau bien</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap">
+        <span class="pill taupe">Tous · 24</span>
+        <span class="pill outline">Mandat actif · 8</span>
+        <span class="pill outline">Prospects · 11</span>
+        <span class="pill outline">Estimations · 5</span>
+        <span class="pill outline">Vendus · 12</span>
+      </div>
+
+      <div class="bien-row" data-bien="rue-eglise">
+        <div class="bien-thumb b1"></div>
+        <div class="addr">12 rue de l'Église, Paris 15<sup>e</sup><small>3 pièces · 4<sup>e</sup> étage · ascenseur · balcon</small></div>
+        <div class="col"><b>62 m²</b><small>habitable</small></div>
+        <div class="col"><b>690 k€</b><small>11 100 €/m²</small></div>
+        <div class="dpe D">D</div>
+        <div class="col"><b>84</b><small>Score Tom</small><div class="score-bar"><i style="width:84%"></i></div></div>
+      </div>
+      <div class="bien-row">
+        <div class="bien-thumb b2"></div>
+        <div class="addr">7 boulevard Lannes, Paris 16<sup>e</sup><small>4 pièces · 6<sup>e</sup> étage · vue Bois</small></div>
+        <div class="col"><b>105 m²</b><small>habitable</small></div>
+        <div class="col"><b>1,8 M€</b><small>17 100 €/m²</small></div>
+        <div class="dpe C">C</div>
+        <div class="col"><b>92</b><small>Score Tom</small><div class="score-bar"><i style="width:92%"></i></div></div>
+      </div>
+      <div class="bien-row">
+        <div class="bien-thumb b3"></div>
+        <div class="addr">3 rue Saint-Antoine, Paris 4<sup>e</sup><small>Studio · RDC · cour intérieure</small></div>
+        <div class="col"><b>26 m²</b><small>habitable</small></div>
+        <div class="col"><b>349 k€</b><small>13 400 €/m²</small></div>
+        <div class="dpe E">E</div>
+        <div class="col"><b>71</b><small>Score Tom</small><div class="score-bar"><i style="width:71%"></i></div></div>
+      </div>
+      <div class="bien-row">
+        <div class="bien-thumb b4"></div>
+        <div class="addr">14 avenue Mozart, Paris 16<sup>e</sup><small>5 pièces · 2<sup>e</sup> étage · cheminée</small></div>
+        <div class="col"><b>132 m²</b><small>habitable</small></div>
+        <div class="col"><b>1,49 M€</b><small>11 290 €/m²</small></div>
+        <div class="dpe D">D</div>
+        <div class="col"><b>56</b><small>Score Tom</small><div class="score-bar low"><i style="width:56%"></i></div></div>
+      </div>
+      <div class="bien-row">
+        <div class="bien-thumb b1"></div>
+        <div class="addr">22 rue de Lille, Paris 7<sup>e</sup><small>3 pièces · 3<sup>e</sup> étage · parquet</small></div>
+        <div class="col"><b>78 m²</b><small>habitable</small></div>
+        <div class="col"><b>1,14 M€</b><small>14 600 €/m²</small></div>
+        <div class="dpe C">C</div>
+        <div class="col"><b>88</b><small>Score Tom</small><div class="score-bar"><i style="width:88%"></i></div></div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : BIEN DETAIL =================== -->
+    <section class="view" data-pane="bien-detail">
+      <div class="view-head">
+        <div>
+          <span class="num mono">DOSSIER · #FOC-2026-0042</span>
+          <h1>12 rue de l'Église, Paris 15<sup>e</sup></h1>
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+            <span class="pill live">Mandat exclusif actif</span>
+            <span class="pill gold">Score Tom 84</span>
+            <span class="pill outline">Vendeur : M. Dupont</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">📜 Mandat</button>
+          <button class="btn btn-ghost">✉️ Message</button>
+          <button class="btn btn-primary">+ Action OSCAR</button>
+        </div>
+      </div>
+
+      <div class="bien-hero">
+        <div class="ph"><div class="ovr">12 photos</div></div>
+        <div>
+          <h2>Appartement 3 pièces · 4<sup>e</sup> étage avec ascenseur</h2>
+          <div class="sub">Mandat exclusif n° 2026-0042 · ouvert le 25/04/2026 · échéance 25/07/2026</div>
+          <div class="specs">
+            <div class="spec"><b>62 m²</b><small>Habitable</small></div>
+            <div class="spec"><b>3</b><small>Pièces</small></div>
+            <div class="spec"><b>4<sup>e</sup></b><small>Étage</small></div>
+            <div class="spec"><b>D</b><small>DPE 2023</small></div>
+            <div class="spec"><b>690 k€</b><small>Mise en vente</small></div>
+            <div class="spec"><b>4 %</b><small>Honoraires</small></div>
+            <div class="spec"><b>3 mois</b><small>Durée mandat</small></div>
+            <div class="spec"><b>2</b><small>Visites</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">Vue</div>
+        <div class="tab">Mandats <span class="pill outline" style="margin-left:4px; font-size:10px">1</span></div>
+        <div class="tab">Documents <span class="pill outline" style="margin-left:4px; font-size:10px">8</span></div>
+        <div class="tab">Communications</div>
+        <div class="tab">Tâches <span class="pill" style="background:var(--t-sarah); color:#fff; margin-left:4px; font-size:10px">3</span></div>
+        <div class="tab">Historique</div>
+        <div class="tab">Données</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-bottom:14px">Activité OSCAR</h3>
+          <div class="feed-item">
+            <div class="av tom" style="width:30px; height:30px; font-size:11px">T</div>
+            <div class="info"><b>Tom — Adresse identifiée 84%</b><small>Croisement DPE + cadastre + Street View</small></div>
+            <div class="when">il y a 3j</div>
+          </div>
+          <div class="feed-item">
+            <div class="av sarah" style="width:30px; height:30px; font-size:11px">S</div>
+            <div class="info"><b>Sarah — Courrier de boîtage généré</b><small>Variante principale + 3 alternatives</small></div>
+            <div class="when">il y a 3j</div>
+          </div>
+          <div class="feed-item">
+            <div class="av nora" style="width:30px; height:30px; font-size:11px">N</div>
+            <div class="info"><b>Nora — Mandat exclusif rédigé</b><small>Conformité Hoguet ✓ · Yousign envoyé</small></div>
+            <div class="when">il y a 1j</div>
+          </div>
+          <div class="feed-item">
+            <div class="av lea" style="width:30px; height:30px; font-size:11px">L</div>
+            <div class="info"><b>Léa — CR visite acheteur Martin</b><small>Offre attendue à 660 k€ · email vendeur en draft</small></div>
+            <div class="when">3h</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:14px">Sources & données croisées</h3>
+          <div class="grid-2" style="gap:10px">
+            <div class="card flat" style="padding:14px">
+              <span class="mono" style="color:var(--muted)">DPE / ADEME</span>
+              <p style="margin:4px 0 0; font-size:13px"><b>D</b> · 211 kWh/m²/an · GES D · diagnostiqué 07/2023</p>
+            </div>
+            <div class="card flat" style="padding:14px">
+              <span class="mono" style="color:var(--muted)">DVF (mutations)</span>
+              <p style="margin:4px 0 0; font-size:13px">Aucune transaction sur l'adresse · 3 ventes <em>rue voisine</em> à 11 200&nbsp;€/m²</p>
+            </div>
+            <div class="card flat" style="padding:14px">
+              <span class="mono" style="color:var(--muted)">Cadastre IGN</span>
+              <p style="margin:4px 0 0; font-size:13px">Section 75-AB-0042 · bâti 1932 · 6 lots</p>
+            </div>
+            <div class="card flat" style="padding:14px">
+              <span class="mono" style="color:var(--muted)">Vision photos</span>
+              <p style="margin:4px 0 0; font-size:13px">Façade Haussmann · parquet point de Hongrie · cheminée d'origine</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : CRM =================== -->
+    <section class="view" data-pane="crm">
+      <div class="view-head">
+        <div>
+          <span class="num mono">04 — CRM</span>
+          <h1>Prospects & vendeurs</h1>
+          <p>147 prospects suivis. 23 sans contact depuis 14 jours — Sarah peut préparer une relance.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">Exporter</button>
+          <button class="btn btn-primary">+ Nouveau prospect</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap">
+        <span class="pill taupe">Tous</span>
+        <span class="pill outline">Vendeurs · 64</span>
+        <span class="pill outline">Acheteurs · 71</span>
+        <span class="pill outline">Anciens clients · 12</span>
+        <span class="pill outline" style="margin-left:auto; cursor:pointer">⚠ À relancer · 23</span>
+      </div>
+
+      <div class="card flat" style="padding:0; overflow:hidden">
+        <div style="display:grid; grid-template-columns:50px 1fr 100px 130px 90px 100px 100px; gap:14px; padding:14px 22px; background:var(--cream-2); font-family:'JetBrains Mono'; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line)">
+          <div></div><div>Prospect</div><div>Type</div><div>Source</div><div>Owner</div><div>Dernier contact</div><div>Score</div>
+        </div>
+        <div style="padding:8px 14px">
+          <div class="bien-row" style="grid-template-columns:50px 1fr 100px 130px 90px 100px 100px; padding:12px 8px">
+            <div class="av tom">JD</div>
+            <div class="addr">Jean Dupont<small>jean.dupont@example.com · 06 12 34 56 78</small></div>
+            <div><span class="pill outline" style="font-size:10px">Vendeur</span></div>
+            <div style="font-size:12px">Boîtage 15<sup>e</sup></div>
+            <div style="font-size:12px">Marie L.</div>
+            <div style="font-size:12px; color:var(--muted)">il y a 3j</div>
+            <div><b style="font-family:'Tenor Sans'">92</b></div>
+          </div>
+          <div class="bien-row" style="grid-template-columns:50px 1fr 100px 130px 90px 100px 100px; padding:12px 8px">
+            <div class="av sarah">EM</div>
+            <div class="addr">Élise & Paul Martin<small>elise.martin@example.com · 06 98 76 54 32</small></div>
+            <div><span class="pill outline" style="font-size:10px">Acheteur</span></div>
+            <div style="font-size:12px">Site agence</div>
+            <div style="font-size:12px">Marie L.</div>
+            <div style="font-size:12px; color:var(--muted)">3h</div>
+            <div><b style="font-family:'Tenor Sans'">88</b></div>
+          </div>
+          <div class="bien-row" style="grid-template-columns:50px 1fr 100px 130px 90px 100px 100px; padding:12px 8px">
+            <div class="av lea">CR</div>
+            <div class="addr">Catherine Rousseau<small>catherine.r@example.com · 06 45 67 89 01</small></div>
+            <div><span class="pill outline" style="font-size:10px">Vendeur</span></div>
+            <div style="font-size:12px">Mandat expiré</div>
+            <div style="font-size:12px">Thomas G.</div>
+            <div style="font-size:12px; color:var(--t-sarah)">il y a 18j ⚠</div>
+            <div><b style="font-family:'Tenor Sans'">74</b></div>
+          </div>
+          <div class="bien-row" style="grid-template-columns:50px 1fr 100px 130px 90px 100px 100px; padding:12px 8px">
+            <div class="av hugo">PB</div>
+            <div class="addr">Pierre Bernard<small>p.bernard@example.com · 06 11 22 33 44</small></div>
+            <div><span class="pill outline" style="font-size:10px">Ancien</span></div>
+            <div style="font-size:12px">Vente 2022</div>
+            <div style="font-size:12px">Marie L.</div>
+            <div style="font-size:12px; color:var(--muted)">il y a 32j</div>
+            <div><b style="font-family:'Tenor Sans'">81</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : DOCUMENTS =================== -->
+    <section class="view" data-pane="documents">
+      <div class="view-head">
+        <div>
+          <span class="num mono">05 — BIBLIOTHÈQUE</span>
+          <h1>Documents</h1>
+          <p>312 documents générés cette année — 24&nbsp;mandats, 187&nbsp;courriers & e-mails, 67&nbsp;comptes rendus, 34&nbsp;présentations.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">Exporter ZIP</button>
+          <button class="btn btn-primary">+ Générer</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap">
+        <span class="pill taupe">Tous</span>
+        <span class="pill outline">Mandats</span>
+        <span class="pill outline">Courriers</span>
+        <span class="pill outline">E-mails</span>
+        <span class="pill outline">Présentations</span>
+        <span class="pill outline">CR visites</span>
+        <span class="pill outline">Résiliations</span>
+      </div>
+
+      <div class="doc-row">
+        <div class="doc-icon">PDF</div>
+        <div><b style="font-size:13.5px">Mandat exclusif — 12 rue de l'Église</b><div style="font-size:11.5px; color:var(--muted)">Nora · #2026-0042 · 8 pages</div></div>
+        <div><span class="pill live">Signé</span></div>
+        <div style="font-size:12px">M. Dupont</div>
+        <div style="font-size:12px">25/04</div>
+        <div><button class="btn btn-ghost" style="padding:5px 10px; font-size:11.5px">Ouvrir</button></div>
+      </div>
+      <div class="doc-row">
+        <div class="doc-icon">DOC</div>
+        <div><b style="font-size:13.5px">Courrier boîtage 15<sup>e</sup> — variante principale</b><div style="font-size:11.5px; color:var(--muted)">Sarah · framework PAS · ton direct</div></div>
+        <div><span class="pill outline">Brouillon</span></div>
+        <div style="font-size:12px">—</div>
+        <div style="font-size:12px">22/04</div>
+        <div><button class="btn btn-ghost" style="padding:5px 10px; font-size:11.5px">Ouvrir</button></div>
+      </div>
+      <div class="doc-row">
+        <div class="doc-icon">MD</div>
+        <div><b style="font-size:13.5px">CR visite acheteur — Martin</b><div style="font-size:11.5px; color:var(--muted)">Léa · enregistrement 28&nbsp;min · 8 tâches</div></div>
+        <div><span class="pill live">Validé</span></div>
+        <div style="font-size:12px">Acheteurs Martin</div>
+        <div style="font-size:12px">25/04</div>
+        <div><button class="btn btn-ghost" style="padding:5px 10px; font-size:11.5px">Ouvrir</button></div>
+      </div>
+      <div class="doc-row">
+        <div class="doc-icon">PDF</div>
+        <div><b style="font-size:13.5px">Pitch vendeur — Mme Lefort</b><div style="font-size:11.5px; color:var(--muted)">Emma · 10 slides · audience premium</div></div>
+        <div><span class="pill beta">v2 beta</span></div>
+        <div style="font-size:12px">Mme Lefort</div>
+        <div style="font-size:12px">19/04</div>
+        <div><button class="btn btn-ghost" style="padding:5px 10px; font-size:11.5px">Ouvrir</button></div>
+      </div>
+      <div class="doc-row">
+        <div class="doc-icon">DOC</div>
+        <div><b style="font-size:13.5px">Lettre résiliation ProBox SaaS</b><div style="font-size:11.5px; color:var(--muted)">Gabriel · LRAR · économie 1&nbsp;068&nbsp;€/an</div></div>
+        <div><span class="pill outline">À envoyer</span></div>
+        <div style="font-size:12px">Direction</div>
+        <div style="font-size:12px">15/04</div>
+        <div><button class="btn btn-ghost" style="padding:5px 10px; font-size:11.5px">Ouvrir</button></div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : KPI =================== -->
+    <section class="view" data-pane="kpi">
+      <div class="view-head">
+        <div>
+          <span class="num mono">06 — PILOTAGE</span>
+          <h1>Performance · Avril 2026</h1>
+          <p>Hugo a synthétisé 4 sources (Apimo, Excel, Google Calendar, OSCAR) et identifié 3 alertes prioritaires.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">Cette semaine</button>
+          <button class="btn btn-ghost btn-outline">Mois</button>
+          <button class="btn btn-ghost">Trimestre</button>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:22px">
+        <div class="kpi-tile">
+          <div class="lab">Mandats rentrés</div>
+          <div class="val">8<small style="font-family:'DM Sans'; font-size:13px; color:var(--muted)"> / 10</small></div>
+          <div class="delta dn">▼ -20% vs cible</div>
+          <div class="bars"><i style="height:50%"></i><i style="height:65%"></i><i style="height:90%"></i><i class="now" style="height:80%"></i></div>
+        </div>
+        <div class="kpi-tile">
+          <div class="lab">Estimations</div>
+          <div class="val">14</div>
+          <div class="delta up">▲ +17% vs mars</div>
+          <div class="bars"><i style="height:55%"></i><i style="height:60%"></i><i style="height:70%"></i><i class="now" style="height:90%"></i></div>
+        </div>
+        <div class="kpi-tile">
+          <div class="lab">CA encaissé</div>
+          <div class="val">142&nbsp;<span style="font-size:24px; color:var(--muted)">k€</span></div>
+          <div class="delta up">▲ +8% vs N-1</div>
+          <div class="bars"><i style="height:60%"></i><i style="height:75%"></i><i style="height:70%"></i><i class="now" style="height:85%"></i></div>
+        </div>
+        <div class="kpi-tile">
+          <div class="lab">Taux transformation</div>
+          <div class="val">38<small style="font-family:'DM Sans'; font-size:18px; color:var(--muted)">%</small></div>
+          <div class="delta up">▲ +4 pts</div>
+          <div class="bars"><i style="height:40%"></i><i style="height:45%"></i><i style="height:55%"></i><i class="now" style="height:75%"></i></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-bottom:14px">Alertes Hugo</h3>
+          <div class="alert-card red">
+            <div class="av sarah" style="width:36px; height:36px; font-size:13px">!</div>
+            <div class="body">
+              <b>Pipeline tiède — 6 dossiers sans relance &gt; 14 jours</b>
+              <p>Les dossiers Rousseau, Lefort, Bernard, Vidal, Costa et Schmitt n'ont pas eu de touche depuis ≥ 14 jours.</p>
+              <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap">
+                <span class="pill outline" style="font-size:11px; cursor:pointer">▶ Sarah prépare une relance</span>
+              </div>
+            </div>
+          </div>
+          <div class="alert-card">
+            <div class="av stella" style="width:36px; height:36px; font-size:13px">⚠</div>
+            <div class="body">
+              <b>Marie L. — 0 mandat ce mois (vs 3 en moyenne)</b>
+              <p>Marie a réalisé 5 estimations mais aucune n'a converti. Binôme avec Thomas G. recommandé.</p>
+            </div>
+          </div>
+          <div class="alert-card green">
+            <div class="av hugo" style="width:36px; height:36px; font-size:13px">★</div>
+            <div class="body">
+              <b>Thomas G. — 4 mandats en 4 semaines (sur-performance)</b>
+              <p>Pratique dominante : prospection téléphonique sur expirés. À documenter et partager en réunion.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:14px">Ranking — Q1 2026</h3>
+          <div style="display:flex; flex-direction:column; gap:10px">
+            <div style="display:grid; grid-template-columns:32px 36px 1fr auto; gap:12px; align-items:center; padding:10px 12px; background:linear-gradient(90deg,rgba(197,169,121,.18),transparent); border-radius:10px; border:1px solid rgba(197,169,121,.4)">
+              <span class="num">01</span>
+              <div class="av hugo">TG</div>
+              <div><b style="font-size:13.5px">Thomas G.</b><div style="font-size:11.5px; color:var(--muted)">12 mandats · 4 ventes · 410 k€ CA</div></div>
+              <div style="font-family:'Tenor Sans'; font-size:22px">410k</div>
+            </div>
+            <div style="display:grid; grid-template-columns:32px 36px 1fr auto; gap:12px; align-items:center; padding:10px 12px">
+              <span class="num">02</span>
+              <div class="av sarah">SL</div>
+              <div><b style="font-size:13.5px">Sophie L.</b><div style="font-size:11.5px; color:var(--muted)">9 mandats · 3 ventes · 312 k€</div></div>
+              <div style="font-family:'Tenor Sans'; font-size:22px; color:var(--muted)">312k</div>
+            </div>
+            <div style="display:grid; grid-template-columns:32px 36px 1fr auto; gap:12px; align-items:center; padding:10px 12px">
+              <span class="num">03</span>
+              <div class="av tom">ML</div>
+              <div><b style="font-size:13.5px">Marie L.</b><div style="font-size:11.5px; color:var(--muted)">5 mandats · 2 ventes · 198 k€</div></div>
+              <div style="font-family:'Tenor Sans'; font-size:22px; color:var(--muted)">198k</div>
+            </div>
+            <div style="display:grid; grid-template-columns:32px 36px 1fr auto; gap:12px; align-items:center; padding:10px 12px">
+              <span class="num">04</span>
+              <div class="av nora">JR</div>
+              <div><b style="font-size:13.5px">Julien R.</b><div style="font-size:11.5px; color:var(--muted)">3 mandats · 1 vente · 89 k€</div></div>
+              <div style="font-family:'Tenor Sans'; font-size:22px; color:var(--muted)">89k</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : SETTINGS =================== -->
+    <section class="view" data-pane="settings">
+      <div class="view-head">
+        <div>
+          <span class="num mono">07 — PARAMÈTRES</span>
+          <h1>Modules & abonnement</h1>
+          <p>Activez les agents dont vous avez besoin. Chaque module est facturable séparément ou en bundle.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">Voir la facture</button>
+          <button class="btn btn-primary">Passer en V3</button>
+        </div>
+      </div>
+
+      <div class="card flat" style="padding:24px; margin-bottom:24px; background:linear-gradient(135deg,var(--ink) 0%,#13182b 100%); color:var(--cream); border:none">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:24px">
+          <div>
+            <span class="mono" style="color:var(--gold)">PLAN AGENCE · MENSUEL</span>
+            <h2 style="color:var(--cream); font-size:32px; margin-top:6px">Foch · 5 modules actifs</h2>
+            <p style="margin:8px 0 0; color:rgba(245,242,233,.7); font-size:13.5px">Renouvellement le 25 mai 2026 · 5 utilisateurs inclus · quota 800 runs OSCAR / mois</p>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'Tenor Sans'; font-size:46px; line-height:1">499<small style="font-size:18px; color:var(--gold)"> €/mois</small></div>
+            <div style="font-size:11.5px; color:rgba(245,242,233,.6); margin-top:4px">HT · facturation Stripe</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <div class="module-icon" style="background:linear-gradient(135deg,#5BC0BE,#3a9c9a); color:#fff">T</div>
+        <div><h4>Module Prospection</h4><p>Tom · recherche d'adresse, scoring mandat, croisement DPE/DVF/cadastre.</p></div>
+        <div class="switch"></div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon" style="background:linear-gradient(135deg,#9B6BFF,#6a3fcf); color:#fff">N</div>
+        <div><h4>Module Mandats</h4><p>Nora · génération mandats Hoguet, registre, intégration Yousign.</p></div>
+        <div class="switch"></div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon" style="background:linear-gradient(135deg,#E94F8A,#b13668); color:#fff">S</div>
+        <div><h4>Module Communication</h4><p>Sarah · courriers, scripts d'appel, e-mails, séquences de relance.</p></div>
+        <div class="switch"></div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon" style="background:linear-gradient(135deg,#A55BE0,#7a3fb0); color:#fff">L</div>
+        <div><h4>Module Relation client</h4><p>Léa · transcription audio, comptes rendus, e-mails de suivi automatisés.</p></div>
+        <div class="switch"></div>
+      </div>
+      <div class="module-card">
+        <div class="module-icon" style="background:linear-gradient(135deg,#5DBB6A,#3a8e47); color:#fff">H</div>
+        <div><h4>Module Pilotage KPI</h4><p>Hugo · agrégation CRM, alertes, rapports performance et préparation réunions.</p></div>
+        <div class="switch"></div>
+      </div>
+      <div class="module-card off">
+        <div class="module-icon" style="background:linear-gradient(135deg,#F0C44A,#c69b22); color:#3a2e10">St</div>
+        <div><h4>Module Réseaux sociaux <span class="pill beta">v2 beta</span></h4><p>Stella · calendriers éditoriaux, posts multi-canal, prompts visuels.</p></div>
+        <div class="switch off"></div>
+      </div>
+      <div class="module-card off">
+        <div class="module-icon" style="background:linear-gradient(135deg,#2FB8A4,#1f8a78); color:#fff">F</div>
+        <div><h4>Module Vidéo IA <span class="pill beta">v2 beta</span></h4><p>Franck · scripts vidéo, storyboards, prompts Runway/Luma.</p></div>
+        <div class="switch off"></div>
+      </div>
+      <div class="module-card off">
+        <div class="module-icon" style="background:linear-gradient(135deg,#5681E0,#3258ad); color:#fff">G</div>
+        <div><h4>Module Finance <span class="pill soon">v3 octobre</span></h4><p>Gabriel · analyse charges, optimisation, courriers de résiliation.</p></div>
+        <div class="switch off"></div>
+      </div>
+      <div class="module-card off">
+        <div class="module-icon" style="background:linear-gradient(135deg,#E25C7A,#b13a55); color:#fff">I</div>
+        <div><h4>Module Recrutement <span class="pill soon">v3 octobre</span></h4><p>Inès · fiches de poste, scoring CV, marque employeur.</p></div>
+        <div class="switch off"></div>
+      </div>
+    </section>
+
+    <!-- =================== VIEW : AGENT DETAIL (générique) =================== -->
+    <section class="view" data-pane="agent-detail">
+      <div class="view-head">
+        <div style="display:flex; gap:18px; align-items:center">
+          <div class="av oscar xxl" id="adAv">O</div>
+          <div>
+            <span class="num mono" id="adRole">ORCHESTRATEUR</span>
+            <h1 id="adName" style="margin-top:4px">OSCAR</h1>
+            <p style="max-width:none" id="adTagline">Comprend votre demande, identifie les agents à activer, leur passe les bons inputs et vous renvoie un livrable prêt à signer, imprimer ou publier.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost">📚 Documentation</button>
+          <button class="btn btn-primary">Lancer une demande</button>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:22px">
+        <div class="card">
+          <h3 style="margin-bottom:14px">Capacités principales</h3>
+          <ul id="adAbilities" style="margin:0; padding-left:18px; line-height:1.8; font-size:13.5px"></ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:14px">Garde-fous</h3>
+          <ul id="adGuards" style="margin:0; padding-left:18px; line-height:1.8; font-size:13.5px"></ul>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:12px">Exemples de demandes</h3>
+      <div class="grid-2" id="adExamples"></div>
+    </section>
+
+  </main>
+
+  <!-- ======================== RIGHT RAIL ======================== -->
+  <aside class="right">
+    <div class="rail-block">
+      <div class="rail-title">Activité OSCAR <a>tout voir</a></div>
+      <div class="feed-item">
+        <div class="av tom" style="width:30px; height:30px; font-size:11px">T</div>
+        <div class="info"><b>12 rue de l'Église — adresse 84%</b><small>Tom · 3j</small></div>
+      </div>
+      <div class="feed-item">
+        <div class="av nora" style="width:30px; height:30px; font-size:11px">N</div>
+        <div class="info"><b>Mandat exclusif #2026-0042</b><small>Nora · 1j</small></div>
+      </div>
+      <div class="feed-item">
+        <div class="av lea" style="width:30px; height:30px; font-size:11px">L</div>
+        <div class="info"><b>CR visite acheteur Martin</b><small>Léa · 3h</small></div>
+      </div>
+      <div class="feed-item">
+        <div class="av sarah" style="width:30px; height:30px; font-size:11px">S</div>
+        <div class="info"><b>Courrier boîtage 15<sup>e</sup></b><small>Sarah · 3j</small></div>
+      </div>
+    </div>
+
+    <div class="rail-block">
+      <div class="rail-title">Tâches du jour <a>+ ajouter</a></div>
+      <div class="task urgent">
+        <div class="chk"></div>
+        <span>Rappeler M. Dupont (offre Martin)</span>
+        <span class="due">11h</span>
+      </div>
+      <div class="task">
+        <div class="chk"></div>
+        <span>Envoyer DPE détaillé aux Martin</span>
+        <span class="due">14h</span>
+      </div>
+      <div class="task">
+        <div class="chk"></div>
+        <span>Tournée boîtage rue de l'Église</span>
+        <span class="due">demain</span>
+      </div>
+      <div class="task done">
+        <div class="chk"></div>
+        <span>Lancer Yousign mandat Lefort</span>
+        <span class="due">9h</span>
+      </div>
+    </div>
+
+    <div class="rail-block">
+      <div class="rail-title">Échéances mandats</div>
+      <div class="task urgent">
+        <div class="chk" style="border-color:var(--t-sarah); background:var(--t-sarah)"></div>
+        <span>Mandat #2026-0031 — Costa</span>
+        <span class="due">J-3</span>
+      </div>
+      <div class="task">
+        <div class="chk" style="border-color:var(--t-stella)"></div>
+        <span>Mandat #2026-0028 — Vidal</span>
+        <span class="due">J-7</span>
+      </div>
+      <div class="task">
+        <div class="chk" style="border-color:var(--t-stella)"></div>
+        <span>Mandat #2026-0024 — Schmitt</span>
+        <span class="due">J-12</span>
+      </div>
+    </div>
+
+    <div class="rail-block">
+      <div class="rail-title">Quotas du mois</div>
+      <div style="background:rgba(255,255,255,.6); border:1px solid var(--line); border-radius:14px; padding:14px">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px"><span>Runs OSCAR</span><span class="mono">347 / 800</span></div>
+        <div class="score-bar" style="width:100%; height:5px"><i style="width:43%"></i></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin:14px 0 6px"><span>Tokens</span><span class="mono">2,1M / 5M</span></div>
+        <div class="score-bar" style="width:100%; height:5px"><i style="width:42%; background:linear-gradient(90deg,var(--taupe),var(--gold))"></i></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ======================== JS ======================== -->
+<script>
+  // Agent metadata for detail view
+  const AGENTS = {
+    oscar:{name:"OSCAR", role:"ORCHESTRATEUR", av:"oscar", initials:"O",
+      tagline:"Comprend votre demande, identifie les agents à activer, leur passe les bons inputs et vous renvoie un livrable prêt à signer, imprimer ou publier.",
+      abilities:["Classification d'intent multi-label","Planification mono-agent / chaîne / parallèle","Tool-use Claude natif","Synthèse + audit du run complet","Réponse directe sur questions factuelles"],
+      guards:["8 étapes max par run, timeout 60s","Validation humaine obligatoire sur mandats, e-mails, signatures","Quotas par tenant et plan Stripe","Aucun envoi automatique vers client final","Refus poli des demandes hors-scope"],
+      examples:["Trouve l'adresse de ce bien : <url>","Prospecte le 15<sup>e</sup>, je veux 3 idées de biens","Génère un mandat exclusif pour M. Dupont","Résume cet enregistrement de visite (audio)"]},
+    tom:{name:"Tom", role:"ENQUÊTEUR MANDAT", av:"tom", initials:"T",
+      tagline:"Retrouve l'adresse probable d'un bien à partir d'une annonce (URL, texte, photos), avec un score de confiance transparent et la justification du raisonnement.",
+      abilities:["Analyse d'annonce : extraction surface, DPE, prix, équipements","Croisement DPE/ADEME, DVF, cadastre, Maps, Street View","Vision LLM : façade, perspective, indices visuels","Scoring 0-100 + priorité commerciale","Recommandation d'action : boîtage / enquête / abandon"],
+      guards:["Aucune affirmation à 100%, toujours un score","Respect robots.txt et CGU des plateformes","Pas d'identification du propriétaire (RGPD)","Score plafonné si DPE absent ou ancien"],
+      examples:["Trouve l'adresse de ce SeLoger : <url>","62m² DPE D 2023 Paris 15<sup>e</sup> 690k€ — c'est où ?","Analyse cette photo + ces infos","Plan de prospection pour le 7<sup>e</sup>"]},
+    nora:{name:"Nora", role:"ADMINISTRATIF & MANDATS", av:"nora", initials:"N",
+      tagline:"Génère rapidement les documents de mandat (simple, exclusif, semi-exclusif, avenant), avec contrôle de complétude et préparation signature électronique.",
+      abilities:["Mandat simple, exclusif, semi-exclusif, avenant","Contrôle conformité loi Hoguet automatique","Génération PDF + Word + envoi Yousign","Numéro de registre séquentiel et immuable","Checklist dossier mandat (titre, ID, diagnostics)"],
+      guards:["Validation humaine obligatoire avant signature","Modèles à valider par avocat partenaire","Aucun envoi auto Yousign","Mentions Hoguet contrôlées avant export"],
+      examples:["Mandat exclusif 12 rue de l'Église, M. Dupont, 690k€, 4% vendeur, 3 mois","Avenant pour proroger le mandat #2026-0042","Checklist dossier pour ce bien","Mandat simple Mme Lefort, 1,2M€"]},
+    sarah:{name:"Sarah", role:"COPYWRITER TERRAIN", av:"sarah", initials:"S",
+      tagline:"Produit des contenus commerciaux prêts à l'emploi : courriers, scripts d'appel, e-mails, SMS, WhatsApp, LinkedIn — multi-tonalité avec gestion d'objections.",
+      abilities:["Multi-canal : courrier, appel, e-mail, SMS, WhatsApp, LinkedIn","Multi-tonalité : direct, chaleureux, expert, premium, familial","Frameworks AIDA, PAS, BAB, FAB, Hook-Story-Offer","Variantes courte / longue / premium / douce","Séquence relance J+3 / J+7 / J+15"],
+      guards:["Vérification consentement opt-in pour SMS et e-mail B2C","Rappel Bloctel avant appel","Pas de promesse chiffrée non sourcée","Fallback courrier postal si canal sensible"],
+      examples:["Courrier boîtage 15<sup>e</sup>, ton direct chaleureux","Script d'appel relance mandat expiré","E-mail B2B confrère pour co-mandater","WhatsApp ancien client, ton décontracté"]},
+    lea:{name:"Léa", role:"COMPTES RENDUS & RELATION CLIENT", av:"lea", initials:"L",
+      tagline:"Transforme un enregistrement vocal, une transcription ou des notes brutes en compte rendu structuré, exploitable par l'agence et par le client.",
+      abilities:["Transcription audio (Whisper / Deepgram) jusqu'à 60 min","Compte rendu structuré : intentions, objections, engagements","E-mail de retour vendeur ou acheteur en draft","Création automatique des tâches dans le CRM","Détection des points de vigilance"],
+      guards:["Consentement d'enregistrement coché par l'utilisateur","Filtrage des éléments perso avant export client","E-mail toujours en draft, jamais envoyé auto","Audio supprimé du stockage 30j après transcription"],
+      examples:["Audio visite acheteur ce matin, bien #ABC","Notes brutes du rdv estimation Bernard","Réunion d'équipe 28 min, actions par personne","CR de mon appel client de 14h"]},
+    emma:{name:"Emma", role:"PRÉSENTATIONS & PITCH", av:"emma", initials:"E",
+      tagline:"Génère rapidement des supports de présentation professionnels : pitch vendeur, réunion équipe, formation, recrutement, services agence.",
+      abilities:["Plan narratif SCQA / Minto / 5-slide pitch","Slides markdown + speaker notes","Export PDF + PPTX + Gamma","Prompts visuels (collab Stella/Franck)","Templates marque agence personnalisables"],
+      guards:["Pas de chiffres marché inventés","Pas de claims juridiques sans validation Nora","Pas d'engagement contractuel sur slides"],
+      examples:["Pitch 10 slides Mme Dubois, mandat exclusif, ton premium","Support réunion équipe sur les KPI de mars","Présentation services agence (15 min)","Pitch investisseur lever 300k€"]},
+    stella:{name:"Stella", role:"RÉSEAUX SOCIAUX", av:"stella", initials:"St",
+      tagline:"Produit des contenus réseaux sociaux alignés avec la marque agence : posts, carrousels, calendriers éditoriaux, hooks, scripts, prompts visuels.",
+      abilities:["Multi-canal : LinkedIn, Instagram, Facebook, TikTok, YouTube Shorts","Calendriers 15j / mensuel","Carrousels 8 slides + prompts visuels","Hooks ≤ 10 mots, hashtags optimisés","A/B variantes (V3)"],
+      guards:["Validation humaine avant publication","Mentions DPE/honoraires sur posts biens","Pas d'image bien sans accord propriétaire","Pas de chiffre inventé"],
+      examples:["Calendrier LinkedIn 15j, ton pédagogique","Post Insta sur ce bien rentré","Carrousel LinkedIn 8 slides erreurs vendeurs","Reel TikTok sur le marché du 15<sup>e</sup>"]},
+    franck:{name:"Franck", role:"VIDÉASTE IA", av:"franck", initials:"F",
+      tagline:"Aide à produire des contenus vidéo immobiliers : scripts, storyboards, voix off, prompts pour outils vidéo IA (Runway, Luma, Kling, Veo).",
+      abilities:["Scripts adaptés au canal (Reel, TikTok, Short, long)","Storyboard plan-par-plan avec timing","Voiceover + captions burn-in","Shot list à tourner sur place","Prompts vidéo IA (Runway, Luma, Kling, Veo)"],
+      guards:["Pas de visuel bien sans accord","Mentions ALUR sur vidéos d'annonce","Musique sous licence uniquement","Pas de visage tiers sans consentement"],
+      examples:["Reel 30s pour bien #ABC, style cinématique","Vidéo recrutement 60s ton chaleureux","Avant/après rénovation, 6 photos chacun","Visite filmée maison Lyon"]},
+    hugo:{name:"Hugo", role:"MANAGER & ANALYSTE KPI", av:"hugo", initials:"H",
+      tagline:"Donne au dirigeant une vision pilotable de la performance commerciale collective et individuelle, et propose des actions correctives.",
+      abilities:["Connecteurs CRM (Apimo, Hektor) + Excel/CSV","Tableaux de bord temps réel","Détection automatique des écarts >15%","Alertes pipeline tiède et sur/sous-performance","Préparation des réunions hebdo"],
+      guards:["Pas de chiffre inventé, donnée manquante signalée","Anonymisation possible pour rapports investisseurs","Données financières détaillées renvoyées à Gabriel"],
+      examples:["Comment va l'agence ce mois ?","Pourquoi Marie est en retard ?","Prépare la réunion commerciale de lundi","Ranking négos sur Q1"]},
+    ines:{name:"Inès", role:"RECRUTEMENT IMMOBILIER", av:"ines", initials:"I",
+      tagline:"Aide à attirer, qualifier et engager des profils immobiliers — négociateurs, assistants, managers — avec respect strict de l'anti-discrimination.",
+      abilities:["Fiches de poste légales et inclusives","Posts de recrutement (collab Stella) + vidéo (Franck)","Messages de chasse LinkedIn","Scoring CV + grille d'entretien","Relances candidats J+3, J+10, J+30"],
+      guards:["Filtrage 25 critères interdits (art. 225-1 CP)","Pas de scraping en violation des CGU","Conservation CV ≤ 2 ans","Validation humaine avant proposition d'embauche"],
+      examples:["Fiche de poste négo senior Lille","Score ce CV pour manager d'agence","Message LinkedIn pour cette candidate","10 questions entretien final demain"]},
+    gabriel:{name:"Gabriel", role:"PILOTE FINANCIER", av:"gabriel", initials:"G",
+      tagline:"Donne une vision claire des entrées, sorties, charges, trésorerie et propose des optimisations chiffrées (résiliations, renégociations).",
+      abilities:["Import Excel et catégorisation automatique","Détection charges anormales et redondantes","Génération courriers de résiliation (LRAR)","Suivi factures aux agents commerciaux","Prévision trésorerie 3 mois"],
+      guards:["Validation humaine avant tout courrier","Aucun envoi automatique","Pas d'expert-comptable, escalade pro sur cas complexes","Accès admin uniquement par défaut"],
+      examples:["Excel charges du trimestre, propose 5 économies","Résilie ProBox SaaS — non utilisé","Quelles factures agents non réglées ?","Prévision trésorerie 3 mois"]}
+  };
+
+  // Navigation
+  const sidebarItems = document.querySelectorAll('.nav-item');
+  const agentRows = document.querySelectorAll('.agent-row');
+  const agentCards = document.querySelectorAll('.agent-card');
+  const views = document.querySelectorAll('.view');
+  const bcView = document.getElementById('bcView');
+
+  function showView(name){
+    views.forEach(v=>v.classList.toggle('show', v.dataset.pane===name));
+    sidebarItems.forEach(i=>i.classList.toggle('active', i.dataset.view===name));
+    agentRows.forEach(r=>r.classList.remove('active'));
+    const labels = {chat:'OSCAR', agents:'Mes agents', biens:'Biens', 'bien-detail':'Dossier bien', crm:'CRM', documents:'Documents', kpi:'Pilotage', settings:'Paramètres', 'agent-detail':'Agent'};
+    bcView.textContent = labels[name] || name;
+    document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function showAgent(slug){
+    const a = AGENTS[slug]; if(!a) return;
+    document.getElementById('adAv').className = 'av '+a.av+' xxl';
+    document.getElementById('adAv').textContent = a.initials;
+    document.getElementById('adRole').textContent = a.role;
+    document.getElementById('adName').textContent = a.name;
+    document.getElementById('adTagline').textContent = a.tagline;
+    document.getElementById('adAbilities').innerHTML = a.abilities.map(x=>'<li>'+x+'</li>').join('');
+    document.getElementById('adGuards').innerHTML = a.guards.map(x=>'<li>'+x+'</li>').join('');
+    document.getElementById('adExamples').innerHTML = a.examples.map(x=>
+      '<div class="card hover" style="padding:16px; cursor:pointer"><div style="font-family:\'JetBrains Mono\'; font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px">Exemple</div><p style="margin:0; font-size:13.5px">'+x+'</p></div>'
+    ).join('');
+    showView('agent-detail');
+    agentRows.forEach(r=>r.classList.toggle('active', r.dataset.agent===slug));
+  }
+
+  sidebarItems.forEach(i=>i.addEventListener('click', ()=>showView(i.dataset.view)));
+  agentRows.forEach(r=>r.addEventListener('click', ()=>showAgent(r.dataset.agent)));
+  agentCards.forEach(c=>c.addEventListener('click', ()=>showAgent(c.dataset.agent)));
+
+  // Bien click → bien-detail
+  document.querySelectorAll('.bien-row').forEach(r=>r.addEventListener('click', ()=>showView('bien-detail')));
+
+  // Demo loader (pour les boutons rapides — placeholder)
+  function loadDemo(kind){
+    const ta = document.querySelector('.composer .field');
+    if(kind==='address'){ ta.value = "Trouve l'adresse de ce bien : seloger.com/annonces/198421036"; }
+    if(kind==='mandate'){ ta.value = "Génère un mandat exclusif pour le bien #2026-0042 — vendeur M. Dupont, prix 690k€, honoraires 4% charge vendeur, 3 mois."; }
+    if(kind==='cr'){ ta.value = "Voici l'enregistrement de ma visite acheteur ce matin sur le 12 rue de l'Église. Fais-moi le compte rendu et l'e-mail pour le vendeur."; }
+    ta.focus();
+  }
+  // expose to inline onclick
+  window.loadDemo = loadDemo;
+
+  // Tabs (visual only)
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', e=>{
+    t.parentNode.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+  }));
+
+  // Switch toggles
+  document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click', ()=>{
+    s.classList.toggle('off');
+    s.closest('.module-card').classList.toggle('off');
+  }));
+
+  // Task check
+  document.querySelectorAll('.task .chk').forEach(c=>c.addEventListener('click', e=>{
+    e.stopPropagation();
+    c.closest('.task').classList.toggle('done');
+  }));
+</script>
+</body>
+</html>

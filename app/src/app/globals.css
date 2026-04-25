@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #F5F2E9;
+  --color-cream-2: #FAF7EF;
+  --color-cream-3: #EDE6D4;
+  --color-taupe: #9B8A72;
+  --color-taupe-d: #7a6b56;
+  --color-taupe-l: #B9A98F;
+  --color-gold: #C5A979;
+  --color-ink: #0C0C0C;
+  --color-ink-2: #2A2722;
+  --color-muted: #6b6b6b;
+  --color-line: #e8e4dc;
+  --color-navy: #1B2A4E;
+  --color-lime: #C6F432;
+
+  /* agents accents */
+  --color-agent-tom: #5BC0BE;
+  --color-agent-nora: #9B6BFF;
+  --color-agent-sarah: #E94F8A;
+  --color-agent-emma: #F59E5B;
+  --color-agent-stella: #F0C44A;
+  --color-agent-franck: #2FB8A4;
+  --color-agent-hugo: #5DBB6A;
+  --color-agent-ines: #E25C7A;
+  --color-agent-gabriel: #5681E0;
+  --color-agent-lea: #A55BE0;
+  --color-agent-oscar: #1B2A4E;
+
+  --font-display: 'Tenor Sans', serif;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 2px 14px rgba(12, 12, 12, 0.05);
+  --shadow-warm: 0 14px 32px rgba(155, 138, 114, 0.18);
+  --shadow-deep: 0 30px 80px rgba(12, 12, 12, 0.10);
+
+  --ease-premium: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(700px 500px at 12% -5%, rgba(155, 138, 114, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 95% 10%, rgba(197, 169, 121, 0.12), transparent 60%),
+    radial-gradient(800px 700px at 60% 110%, rgba(27, 42, 78, 0.06), transparent 60%);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.005em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-taupe);
+}

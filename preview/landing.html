@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Assistimmo AI — L'Operating System des agences immobilières</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tenor+Sans&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F5F2E9; --cream-2:#FAF7EF; --cream-3:#EDE6D4;
+    --taupe:#9B8A72; --taupe-d:#7a6b56; --taupe-l:#B9A98F;
+    --gold:#C5A979;
+    --ink:#0C0C0C; --ink-2:#2A2722; --muted:#6b6b6b; --line:#e8e4dc;
+    --navy:#1B2A4E; --lime:#C6F432;
+    --t-tom:#5BC0BE; --t-nora:#9B6BFF; --t-sarah:#E94F8A; --t-emma:#F59E5B;
+    --t-stella:#F0C44A; --t-franck:#2FB8A4; --t-hugo:#5DBB6A; --t-ines:#E25C7A;
+    --t-gabriel:#5681E0; --t-lea:#A55BE0; --t-oscar:#1B2A4E;
+    --r-pill:999px;
+    --shadow-1:0 2px 14px rgba(12,12,12,.05);
+    --shadow-2:0 14px 32px rgba(155,138,114,.18);
+    --shadow-3:0 30px 80px rgba(12,12,12,.10);
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; padding:0; font-family:'DM Sans',system-ui,sans-serif; background:var(--cream); color:var(--ink); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(900px 700px at 10% -5%, rgba(155,138,114,.18), transparent 60%),
+      radial-gradient(1100px 800px at 95% 25%, rgba(197,169,121,.12), transparent 60%),
+      radial-gradient(900px 800px at 50% 95%, rgba(27,42,78,.06), transparent 60%);
+  }
+  h1,h2,h3,h4{font-family:'Tenor Sans',serif; font-weight:400; letter-spacing:.005em; color:var(--ink); margin:0}
+  h1{font-size:clamp(40px, 6vw, 78px); line-height:1.02}
+  h2{font-size:clamp(30px, 4vw, 52px); line-height:1.05}
+  h3{font-size:24px; line-height:1.2}
+  h4{font-size:17px}
+  p{margin:0; color:var(--ink-2)}
+  a{color:inherit; text-decoration:none}
+  .mono{font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--taupe)}
+  em{font-style:normal; color:var(--taupe-d)}
+  .num{font-family:'JetBrains Mono',monospace; font-weight:500; color:var(--taupe); letter-spacing:.05em}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    background:rgba(245,242,233,.72);
+    border-bottom:1px solid rgba(232,228,220,.6);
+    transition:all .3s var(--ease);
+  }
+  .nav-in{
+    max-width:1280px; margin:0 auto; padding:18px 32px;
+    display:flex; align-items:center; gap:32px;
+  }
+  .nav .brand{display:flex; align-items:center; gap:11px}
+  .nav .logo{
+    width:38px; height:38px; border-radius:9px;
+    background:linear-gradient(135deg,var(--cream-2),var(--cream-3));
+    display:grid; place-items:center; color:var(--taupe-d);
+    border:1px solid rgba(155,138,114,.2);
+  }
+  .nav .logo svg{width:22px; height:22px}
+  .nav .name{font-family:'Tenor Sans'; font-size:20px; color:var(--taupe-d); letter-spacing:.01em}
+  .nav-links{display:flex; gap:28px; margin-left:32px}
+  .nav-links a{font-size:13.5px; color:var(--ink-2); transition:color .2s}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{margin-left:auto; display:flex; gap:10px; align-items:center}
+
+  /* ---------- BUTTONS ---------- */
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:13px 24px; border-radius:var(--r-pill);
+    font-family:'DM Sans'; font-weight:500; font-size:14px;
+    border:1px solid transparent; cursor:pointer;
+    transition:all .35s var(--ease); white-space:nowrap;
+  }
+  .btn-primary{background:var(--ink); color:var(--cream); box-shadow:0 14px 32px rgba(12,12,12,.18)}
+  .btn-primary:hover{background:var(--ink-2); transform:translateY(-1px); box-shadow:0 20px 42px rgba(12,12,12,.25)}
+  .btn-taupe{background:var(--taupe); color:#fff; box-shadow:0 14px 32px rgba(155,138,114,.35)}
+  .btn-taupe:hover{background:var(--taupe-d)}
+  .btn-outline{background:transparent; color:var(--ink); border-color:var(--ink)}
+  .btn-outline:hover{background:var(--ink); color:var(--cream)}
+  .btn-ghost{background:rgba(255,255,255,.6); border:1px solid var(--line); color:var(--ink-2)}
+  .btn-ghost:hover{background:#fff}
+  .btn.sm{padding:9px 16px; font-size:12.5px}
+  .btn.lg{padding:16px 30px; font-size:15px}
+
+  /* ---------- LAYOUT ---------- */
+  section{position:relative; z-index:1; padding:110px 0; }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px}
+  .pre-title{margin-bottom:18px; display:inline-flex; align-items:center; gap:10px}
+  .pre-title .dot{width:6px; height:6px; border-radius:50%; background:var(--taupe); box-shadow:0 0 0 4px rgba(155,138,114,.18)}
+
+  /* ---------- HERO ---------- */
+  .hero{padding-top:170px; padding-bottom:80px}
+  .hero-grid{display:grid; grid-template-columns:1.1fr 1fr; gap:60px; align-items:center}
+  .hero h1{margin-bottom:24px; max-width:680px}
+  .hero h1 em{display:inline-block; color:var(--taupe-d); font-style:normal}
+  .hero p.lead{font-size:18px; max-width:540px; color:var(--ink-2); line-height:1.55}
+  .hero-cta{display:flex; gap:14px; margin-top:38px; flex-wrap:wrap}
+  .hero-meta{display:flex; gap:24px; margin-top:38px; padding-top:30px; border-top:1px solid var(--line); flex-wrap:wrap}
+  .hero-meta div{display:flex; flex-direction:column; gap:3px}
+  .hero-meta b{font-family:'Tenor Sans'; font-size:24px; line-height:1; color:var(--ink)}
+  .hero-meta small{font-size:11px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase}
+
+  /* hero visual: stylized chat preview */
+  .hero-chat{
+    position:relative;
+    background:linear-gradient(135deg,#fff 0%,var(--cream-2) 100%);
+    border:1px solid var(--line); border-radius:24px;
+    padding:24px; box-shadow:var(--shadow-3);
+  }
+  .hero-chat::before{
+    content:""; position:absolute; right:-30px; top:-30px; width:240px; height:240px;
+    background:radial-gradient(closest-side,rgba(197,169,121,.30),transparent 70%);
+    z-index:-1;
+  }
+  .hc-bar{display:flex; align-items:center; gap:7px; padding-bottom:16px; border-bottom:1px solid var(--line)}
+  .hc-bar i{width:10px; height:10px; border-radius:50%; background:var(--cream-3)}
+  .hc-bar i:first-child{background:#ff6b5b} .hc-bar i:nth-child(2){background:#ffbf3b} .hc-bar i:nth-child(3){background:#3ec06b}
+  .hc-bar span{font-family:'JetBrains Mono'; font-size:10px; color:var(--muted); margin-left:auto}
+  .hc-msg{margin:14px 0; display:flex; gap:10px}
+  .hc-msg.user{justify-content:flex-end}
+  .hc-bubble{
+    background:#fff; border:1px solid var(--line); border-radius:14px 14px 14px 4px;
+    padding:11px 14px; font-size:13px; max-width:80%; box-shadow:var(--shadow-1);
+  }
+  .hc-msg.user .hc-bubble{background:var(--ink); color:var(--cream); border-radius:14px 14px 4px 14px; border-color:var(--ink)}
+  .hc-av{
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    display:grid; place-items:center; color:#fff; font-weight:600; font-size:11px;
+    background:linear-gradient(135deg,var(--t-oscar),#0f1a36);
+    box-shadow:0 0 0 2px var(--gold) inset;
+  }
+  .hc-plan{
+    margin-top:6px; padding:8px 12px; border-radius:var(--r-pill);
+    background:linear-gradient(135deg,rgba(27,42,78,.06),rgba(155,138,114,.10));
+    font-size:11.5px; color:var(--ink-2); display:inline-flex; align-items:center; gap:8px;
+  }
+  .hc-plan .micro-av{width:18px; height:18px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:8px; font-weight:700}
+  .hc-card{
+    margin-top:8px; padding:13px; border-radius:12px;
+    background:linear-gradient(180deg,var(--cream-2),#fff); border:1px solid var(--line);
+  }
+  .hc-card b{font-size:13.5px; font-family:'Tenor Sans'}
+  .hc-card .pill-inline{display:inline-block; margin-left:6px; padding:2px 8px; border-radius:var(--r-pill); background:rgba(197,169,121,.2); color:var(--taupe-d); font-size:10.5px; font-weight:500; vertical-align:middle}
+  .hc-card .row{display:flex; gap:8px; margin-top:8px; font-size:12px; color:var(--muted)}
+  .hc-card .row b{font-family:'Tenor Sans'; color:var(--ink); font-size:14px; margin-right:4px}
+
+  /* ---------- TICKER ---------- */
+  .ticker{
+    background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    padding:18px 0; margin-top:60px;
+  }
+  .ticker-in{display:flex; align-items:center; gap:48px; padding:0 32px; max-width:1280px; margin:0 auto; flex-wrap:wrap; justify-content:space-between}
+  .ticker-item{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted)}
+  .ticker-item b{color:var(--ink); font-family:'Tenor Sans'; font-size:18px}
+
+  /* ---------- PROBLEM / MANIFEST ---------- */
+  .manifest{text-align:center; padding:120px 0}
+  .manifest h2{max-width:880px; margin:0 auto; font-size:clamp(34px,4.5vw,62px)}
+  .manifest h2 em{color:var(--taupe-d)}
+  .manifest p{max-width:600px; margin:24px auto 0; font-size:17px; color:var(--muted)}
+
+  .problems{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:60px}
+  .pb-card{
+    background:rgba(255,255,255,.55); border:1px solid var(--line);
+    border-radius:22px; padding:30px; backdrop-filter:blur(8px);
+    transition:all .35s var(--ease);
+  }
+  .pb-card:hover{transform:translateY(-3px); background:#fff; box-shadow:var(--shadow-3)}
+  .pb-num{font-family:'Tenor Sans'; font-size:46px; line-height:1; color:var(--taupe); margin-bottom:18px}
+  .pb-card h3{margin-bottom:10px}
+
+  /* ---------- OSCAR SECTION ---------- */
+  .oscar-section{
+    background:linear-gradient(135deg,var(--ink) 0%,#13182b 50%,var(--ink) 100%);
+    color:var(--cream); position:relative; overflow:hidden;
+  }
+  .oscar-section::before{
+    content:""; position:absolute; right:-200px; top:-200px; width:600px; height:600px;
+    background:radial-gradient(closest-side,rgba(197,169,121,.20),transparent 70%);
+  }
+  .oscar-section::after{
+    content:""; position:absolute; left:-150px; bottom:-150px; width:400px; height:400px;
+    background:radial-gradient(closest-side,rgba(155,138,114,.18),transparent 70%);
+  }
+  .oscar-section .mono{color:var(--gold)}
+  .oscar-section h2{color:var(--cream)}
+  .oscar-section h2 em{color:var(--gold)}
+  .oscar-section p{color:rgba(245,242,233,.75); max-width:680px}
+  .oscar-grid{display:grid; grid-template-columns:1.2fr 1fr; gap:60px; align-items:center; margin-top:60px}
+  .oscar-features{display:flex; flex-direction:column; gap:20px}
+  .of{display:flex; gap:18px; align-items:flex-start}
+  .of-num{
+    flex-shrink:0; width:42px; height:42px; border-radius:12px;
+    background:rgba(197,169,121,.15); border:1px solid rgba(197,169,121,.3);
+    display:grid; place-items:center; font-family:'Tenor Sans'; font-size:17px; color:var(--gold);
+  }
+  .of h4{color:var(--cream); margin-bottom:4px}
+  .of p{font-size:14px; color:rgba(245,242,233,.65); max-width:none}
+
+  .schema{
+    position:relative; padding:40px;
+    background:rgba(245,242,233,.04); border:1px solid rgba(245,242,233,.1);
+    border-radius:24px; backdrop-filter:blur(8px);
+    min-height:400px;
+  }
+  .schema-center{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:90px; height:90px; border-radius:50%;
+    background:linear-gradient(135deg,var(--gold),var(--taupe));
+    display:grid; place-items:center; color:var(--ink); font-family:'Tenor Sans'; font-size:24px;
+    box-shadow:0 0 0 2px rgba(197,169,121,.2), 0 0 0 18px rgba(197,169,121,.08), 0 20px 60px rgba(197,169,121,.4);
+    z-index:2;
+  }
+  .schema-orbit{position:absolute; inset:0}
+  .orb{
+    position:absolute; width:48px; height:48px; border-radius:50%;
+    display:grid; place-items:center; color:#fff; font-weight:700; font-size:14px;
+    box-shadow:0 6px 18px rgba(0,0,0,.3); border:2px solid rgba(245,242,233,.15);
+    transition:all .3s var(--ease);
+  }
+  .orb:hover{transform:scale(1.12); border-color:var(--gold)}
+  .orb.tom{top:8%; left:18%; background:linear-gradient(135deg,#5BC0BE,#3a9c9a)}
+  .orb.nora{top:8%; right:18%; background:linear-gradient(135deg,#9B6BFF,#6a3fcf)}
+  .orb.sarah{top:50%; left:5%; transform:translateY(-50%); background:linear-gradient(135deg,#E94F8A,#b13668)}
+  .orb.lea{top:50%; right:5%; transform:translateY(-50%); background:linear-gradient(135deg,#A55BE0,#7a3fb0)}
+  .orb.emma{bottom:8%; left:18%; background:linear-gradient(135deg,#F59E5B,#c47533)}
+  .orb.stella{bottom:8%; right:18%; background:linear-gradient(135deg,#F0C44A,#c69b22); color:#3a2e10}
+  .orb.franck{top:30%; left:35%; background:linear-gradient(135deg,#2FB8A4,#1f8a78); width:38px; height:38px; font-size:11px}
+  .orb.hugo{top:30%; right:35%; background:linear-gradient(135deg,#5DBB6A,#3a8e47); width:38px; height:38px; font-size:11px}
+  .orb.ines{bottom:30%; left:35%; background:linear-gradient(135deg,#E25C7A,#b13a55); width:38px; height:38px; font-size:11px}
+  .orb.gabriel{bottom:30%; right:35%; background:linear-gradient(135deg,#5681E0,#3258ad); width:38px; height:38px; font-size:11px}
+  .schema svg.lines{position:absolute; inset:0; width:100%; height:100%; z-index:1}
+  .schema svg.lines line{stroke:rgba(197,169,121,.25); stroke-width:1; stroke-dasharray:3 4}
+
+  /* ---------- AGENTS GALLERY ---------- */
+  .agents-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:50px}
+  .ag-card{
+    background:rgba(255,255,255,.7); border:1px solid var(--line);
+    border-radius:18px; padding:22px;
+    transition:all .35s var(--ease); cursor:pointer; position:relative;
+  }
+  .ag-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-3); background:#fff}
+  .ag-head{display:flex; align-items:center; gap:14px; margin-bottom:14px}
+  .ag-av{
+    width:46px; height:46px; border-radius:50%;
+    display:grid; place-items:center; color:#fff; font-weight:700; font-size:16px;
+    box-shadow:0 4px 10px rgba(12,12,12,.12);
+  }
+  .ag-av.tom{background:linear-gradient(135deg,#5BC0BE,#3a9c9a)}
+  .ag-av.nora{background:linear-gradient(135deg,#9B6BFF,#6a3fcf)}
+  .ag-av.sarah{background:linear-gradient(135deg,#E94F8A,#b13668)}
+  .ag-av.lea{background:linear-gradient(135deg,#A55BE0,#7a3fb0)}
+  .ag-av.emma{background:linear-gradient(135deg,#F59E5B,#c47533)}
+  .ag-av.stella{background:linear-gradient(135deg,#F0C44A,#c69b22); color:#3a2e10}
+  .ag-av.franck{background:linear-gradient(135deg,#2FB8A4,#1f8a78)}
+  .ag-av.hugo{background:linear-gradient(135deg,#5DBB6A,#3a8e47)}
+  .ag-av.ines{background:linear-gradient(135deg,#E25C7A,#b13a55)}
+  .ag-av.gabriel{background:linear-gradient(135deg,#5681E0,#3258ad)}
+  .ag-card h4{font-family:'Tenor Sans'; font-size:18px; line-height:1; margin-bottom:3px}
+  .ag-card .role{font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase}
+  .ag-card p{font-size:13px; color:var(--ink-2); line-height:1.5}
+  .ag-card .badge{
+    position:absolute; top:18px; right:18px;
+    padding:3px 9px; border-radius:var(--r-pill);
+    font-size:10px; font-family:'JetBrains Mono'; letter-spacing:.05em;
+    background:rgba(93,187,106,.15); color:#2a6e36; text-transform:uppercase;
+  }
+  .ag-card .badge.beta{background:rgba(240,196,74,.2); color:#7d5e08}
+  .ag-card .badge.soon{background:rgba(107,107,107,.12); color:var(--muted)}
+
+  /* ---------- HOW IT WORKS ---------- */
+  .how-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:50px; align-items:stretch}
+  .how-card{
+    background:linear-gradient(180deg,#fff,var(--cream-2));
+    border:1px solid var(--line); border-radius:22px;
+    padding:36px 30px; position:relative;
+  }
+  .how-step{
+    position:absolute; top:-22px; left:30px;
+    width:44px; height:44px; border-radius:50%;
+    background:var(--ink); color:var(--cream);
+    display:grid; place-items:center;
+    font-family:'Tenor Sans'; font-size:18px;
+    box-shadow:0 8px 20px rgba(12,12,12,.18);
+  }
+  .how-card h3{margin:14px 0 10px}
+  .how-card p{font-size:14px; color:var(--muted)}
+
+  /* ---------- USE CASES ---------- */
+  .use-case{
+    display:grid; grid-template-columns:1fr 1.2fr; gap:50px; align-items:center;
+    padding:60px 0; border-bottom:1px solid var(--line);
+  }
+  .use-case:last-child{border-bottom:none}
+  .use-case.alt{grid-template-columns:1.2fr 1fr; direction:rtl}
+  .use-case.alt > *{direction:ltr}
+  .uc-meta{font-family:'JetBrains Mono'; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--taupe); margin-bottom:14px; display:flex; gap:14px; align-items:center}
+  .uc-meta .pipe{color:var(--line)}
+  .use-case h3{font-size:32px; margin-bottom:16px}
+  .use-case p{font-size:15px; color:var(--muted); margin-bottom:18px}
+  .uc-flow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:18px}
+  .uc-pill{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 14px; border-radius:var(--r-pill);
+    background:#fff; border:1px solid var(--line);
+    font-size:12px;
+  }
+  .uc-pill .av-mini{
+    width:18px; height:18px; border-radius:50%;
+    color:#fff; font-size:9px; font-weight:700;
+    display:grid; place-items:center;
+  }
+  .uc-arrow{color:var(--taupe)}
+  .uc-visual{
+    background:linear-gradient(135deg,var(--cream-2),var(--cream-3));
+    border:1px solid var(--line); border-radius:24px; padding:30px;
+    min-height:260px;
+    display:grid; place-items:center; box-shadow:var(--shadow-2);
+    position:relative; overflow:hidden;
+  }
+  .uc-visual::before{
+    content:""; position:absolute; right:-60px; top:-60px; width:200px; height:200px;
+    background:radial-gradient(closest-side,rgba(197,169,121,.25),transparent 70%);
+  }
+  .uc-visual b{font-family:'Tenor Sans'; font-size:42px; line-height:1; color:var(--ink)}
+  .uc-visual small{display:block; font-size:11.5px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-top:10px}
+  .uc-visual .pillline{display:flex; gap:6px; margin-top:18px; flex-wrap:wrap; justify-content:center}
+  .uc-visual .pillline span{padding:4px 10px; border-radius:var(--r-pill); background:rgba(255,255,255,.6); font-size:11px; border:1px solid var(--line)}
+
+  /* ---------- COMPLIANCE ---------- */
+  .compliance{
+    background:linear-gradient(135deg,var(--cream-2) 0%,#fff 100%);
+    border:1px solid var(--line); border-radius:30px;
+    padding:60px 50px; margin-top:60px; position:relative; overflow:hidden;
+  }
+  .compliance::before{
+    content:""; position:absolute; right:-100px; top:-100px; width:300px; height:300px;
+    background:radial-gradient(closest-side,rgba(155,138,114,.18),transparent 70%);
+  }
+  .comp-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:24px; margin-top:40px; position:relative; z-index:1}
+  .comp-item{display:flex; flex-direction:column; gap:6px}
+  .comp-item b{font-family:'Tenor Sans'; font-size:15px}
+  .comp-item small{font-size:12px; color:var(--muted)}
+
+  /* ---------- PRICING TEASE ---------- */
+  .price-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:50px}
+  .pp{
+    background:#fff; border:1px solid var(--line); border-radius:22px;
+    padding:34px 28px; transition:all .35s var(--ease);
+    position:relative;
+  }
+  .pp:hover{transform:translateY(-3px); box-shadow:var(--shadow-3)}
+  .pp.featured{
+    background:linear-gradient(135deg,var(--ink) 0%,#13182b 100%); color:var(--cream); border:none;
+    box-shadow:var(--shadow-3);
+  }
+  .pp.featured h3, .pp.featured .price{color:var(--cream)}
+  .pp.featured .price small{color:var(--gold)}
+  .pp.featured ul li{color:rgba(245,242,233,.85)}
+  .pp.featured .pp-tag{background:var(--gold); color:var(--ink)}
+  .pp-tag{
+    position:absolute; top:-12px; right:24px;
+    padding:5px 12px; border-radius:var(--r-pill);
+    background:var(--lime); color:var(--ink); font-size:11px; font-weight:600;
+    font-family:'JetBrains Mono'; letter-spacing:.08em; text-transform:uppercase;
+  }
+  .pp h3{margin-bottom:6px}
+  .pp .audience{font-size:12px; color:var(--muted); margin-bottom:24px}
+  .pp.featured .audience{color:rgba(245,242,233,.6)}
+  .pp .price{font-family:'Tenor Sans'; font-size:48px; line-height:1; margin-bottom:30px}
+  .pp .price small{font-size:14px; color:var(--muted); font-family:'DM Sans'}
+  .pp ul{list-style:none; padding:0; margin:0 0 28px; display:flex; flex-direction:column; gap:11px}
+  .pp ul li{font-size:13.5px; padding-left:24px; position:relative; line-height:1.45}
+  .pp ul li::before{
+    content:""; position:absolute; left:0; top:7px;
+    width:14px; height:14px; border-radius:50%;
+    background:var(--cream-3); border:2px solid var(--taupe);
+  }
+  .pp.featured ul li::before{background:transparent; border-color:var(--gold)}
+  .pp .btn{width:100%; justify-content:center}
+
+  /* ---------- FAQ ---------- */
+  .faq{margin-top:50px; max-width:840px; margin-left:auto; margin-right:auto}
+  .qa{
+    border-bottom:1px solid var(--line);
+    padding:22px 0; cursor:pointer;
+  }
+  .qa-q{display:flex; align-items:center; justify-content:space-between; gap:20px}
+  .qa-q h4{font-size:18px; margin:0; font-family:'Tenor Sans'; transition:color .2s}
+  .qa-q .plus{
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--line); background:#fff;
+    display:grid; place-items:center; color:var(--taupe);
+    transition:all .3s var(--ease); flex-shrink:0;
+  }
+  .qa.open .qa-q .plus{transform:rotate(45deg); background:var(--ink); color:var(--cream); border-color:var(--ink)}
+  .qa-a{
+    max-height:0; overflow:hidden; transition:all .35s var(--ease);
+    color:var(--muted); font-size:14.5px;
+  }
+  .qa.open .qa-a{max-height:400px; padding-top:14px}
+
+  /* ---------- FINAL CTA ---------- */
+  .final-cta{
+    background:linear-gradient(135deg,#9B8A72 0%,#7a6b56 70%,#5b4f40 100%);
+    border-radius:30px; padding:80px 60px; text-align:center;
+    position:relative; overflow:hidden; color:#fff;
+    box-shadow:0 40px 100px rgba(122,107,86,.4);
+  }
+  .final-cta::before{
+    content:""; position:absolute; right:-100px; top:-100px; width:400px; height:400px;
+    background:radial-gradient(closest-side,rgba(245,242,233,.15),transparent 70%);
+  }
+  .final-cta h2{color:#fff; max-width:680px; margin:0 auto 18px; position:relative; z-index:1}
+  .final-cta p{color:rgba(255,255,255,.85); max-width:560px; margin:0 auto; font-size:16px; position:relative; z-index:1}
+  .final-cta .btn-cluster{display:flex; gap:14px; justify-content:center; margin-top:40px; flex-wrap:wrap; position:relative; z-index:1}
+  .final-cta .btn-light{background:#fff; color:var(--ink); box-shadow:0 14px 40px rgba(0,0,0,.18)}
+  .final-cta .btn-light:hover{transform:translateY(-1px); box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .final-cta .btn-ghost-l{background:transparent; color:#fff; border:1px solid rgba(255,255,255,.35)}
+  .final-cta .btn-ghost-l:hover{background:rgba(255,255,255,.1)}
+
+  /* ---------- FOOTER ---------- */
+  footer{background:var(--ink); color:rgba(245,242,233,.7); padding:80px 0 40px; margin-top:120px; position:relative; z-index:1}
+  footer .wrap{display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr; gap:40px}
+  footer .brand{color:var(--cream); margin-bottom:14px}
+  footer h5{font-family:'Tenor Sans'; font-size:14px; color:var(--cream); margin:0 0 14px}
+  footer ul{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px}
+  footer ul a{font-size:13px; color:rgba(245,242,233,.6); transition:color .2s}
+  footer ul a:hover{color:var(--cream)}
+  footer .copy{
+    margin-top:60px; padding-top:30px; border-top:1px solid rgba(245,242,233,.1);
+    display:flex; justify-content:space-between; gap:20px; font-size:12px; flex-wrap:wrap;
+  }
+  footer .copy .legal{display:flex; gap:24px}
+
+  /* responsive */
+  @media (max-width:1080px){
+    .hero-grid, .oscar-grid{grid-template-columns:1fr; gap:50px}
+    .agents-grid, .how-grid, .problems, .price-grid{grid-template-columns:1fr 1fr}
+    .comp-grid{grid-template-columns:repeat(2,1fr)}
+    .use-case, .use-case.alt{grid-template-columns:1fr; direction:ltr}
+  }
+  @media (max-width:680px){
+    .nav-links{display:none}
+    .agents-grid, .how-grid, .problems, .price-grid, .comp-grid{grid-template-columns:1fr}
+    section{padding:80px 0}
+    .hero{padding-top:130px}
+    footer .wrap{grid-template-columns:1fr 1fr; gap:30px}
+  }
+  svg.gen{stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+</style>
+</head>
+<body>
+
+<!-- ============== NAV ============== -->
+<nav class="nav">
+  <div class="nav-in">
+    <a href="#" class="brand">
+      <div class="logo" aria-label="Assistimmo">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M50 14 L18 84 L82 84 Z"/>
+          <path d="M50 50 L36 80 L36 84 M50 50 L64 80 L64 84"/>
+        </svg>
+      </div>
+      <div class="name">Assistimmo</div>
+    </a>
+    <div class="nav-links">
+      <a href="#oscar">OSCAR</a>
+      <a href="#agents">Agents</a>
+      <a href="#how">Comment ça marche</a>
+      <a href="#cas">Cas d'usage</a>
+      <a href="#tarifs">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost sm">Démo guidée</a>
+      <a href="index.html" class="btn btn-primary sm">Ouvrir l'app →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <div class="pre-title"><span class="dot"></span><span class="mono">L'OS immobilier · 11 agents IA</span></div>
+      <h1>Une seule conversation.<br/><em>Toute votre agence</em> qui exécute.</h1>
+      <p class="lead">Assistimmo regroupe 11&nbsp;agents IA — recherche d'adresse, mandats, courriers, comptes rendus, KPI, finance, recrutement — pilotés par OSCAR, l'orchestrateur qui comprend votre demande et active les bons agents au bon moment.</p>
+      <div class="hero-cta">
+        <a href="index.html" class="btn btn-primary lg">Tester l'application</a>
+        <a href="#how" class="btn btn-outline lg">Voir une démo (3 min)</a>
+      </div>
+      <div class="hero-meta">
+        <div><b>11</b><small>Agents spécialisés</small></div>
+        <div><b>4 h</b><small>Gagnées / négociateur / semaine</small></div>
+        <div><b>100 %</b><small>Conforme RGPD · Hoguet · ALUR</small></div>
+        <div><b>FR</b><small>Hébergement + données</small></div>
+      </div>
+    </div>
+
+    <div class="hero-chat">
+      <div class="hc-bar"><i></i><i></i><i></i><span>OSCAR — chat</span></div>
+      <div class="hc-msg user"><div class="hc-bubble">Trouve l'adresse de ce bien : seloger.com/198421036 — et prépare un courrier de boîtage.</div></div>
+      <div class="hc-msg">
+        <div class="hc-av">O</div>
+        <div style="flex:1">
+          <div class="hc-plan">
+            <span class="mono" style="color:var(--muted); font-size:9px">PLAN</span>
+            <div class="micro-av" style="background:linear-gradient(135deg,#5BC0BE,#3a9c9a)">T</div><b>Tom</b> enquête
+            <span style="color:var(--muted)">→</span>
+            <div class="micro-av" style="background:linear-gradient(135deg,#E94F8A,#b13668)">S</div><b>Sarah</b> rédige
+          </div>
+          <div class="hc-card">
+            <b>12 rue de l'Église, Paris 15<sup>e</sup></b><span class="pill-inline">Fiabilité 84&nbsp;%</span>
+            <div style="margin-top:6px; color:var(--muted); font-size:11.5px">Croisement DPE/ADEME · DVF · Cadastre · Vision LLM</div>
+            <div class="row"><span><b>62 m²</b>habitable</span><span><b>D</b>DPE 2023</span><span><b>690 k€</b>annonce</span></div>
+          </div>
+          <div class="hc-card" style="background:linear-gradient(180deg,#fff,#fff)">
+            <b style="font-size:12.5px; font-family:'DM Sans'; font-weight:600">Courrier boîtage · Variante directe</b>
+            <p style="margin:6px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55">Madame, Monsieur, vendre votre appartement dans le 15<sup>e</sup> en 2026, ce n'est plus aussi évident qu'il y a deux ans. Notre équipe a accompagné <b>14 ventes dans le quartier</b> sur les 12 derniers mois…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== TICKER ============== -->
+<div class="ticker">
+  <div class="ticker-in">
+    <div class="ticker-item">🇫🇷 <b>RGPD</b><span>par défaut</span></div>
+    <div class="ticker-item">📜 <b>Loi Hoguet</b><span>registre intégré</span></div>
+    <div class="ticker-item">✍️ <b>eIDAS</b><span>Yousign avancé</span></div>
+    <div class="ticker-item">🏛 <b>DPE / ADEME</b><span>API officielles</span></div>
+    <div class="ticker-item">📊 <b>DVF · Cadastre</b><span>data.gouv.fr</span></div>
+  </div>
+</div>
+
+<!-- ============== MANIFEST ============== -->
+<section class="manifest wrap">
+  <div class="pre-title"><span class="dot"></span><span class="mono">01 — Le constat</span></div>
+  <h2>Un négociateur passe 60&nbsp;% de son temps à <em>tout sauf vendre</em>.</h2>
+  <p>Saisie CRM, courriers, mandats, comptes rendus, présentations, posts, suivi KPI, recrutement, charges. Assistimmo prend en charge tout ce qui n'est pas du contact humain.</p>
+
+  <div class="problems">
+    <div class="pb-card">
+      <div class="pb-num">28&nbsp;%</div>
+      <h3>de mandats perdus</h3>
+      <p>Faute de relance suffisante post-estimation. Une séquence Sarah J+3 / J+7 / J+15 récupère 40 % de ces dossiers.</p>
+    </div>
+    <div class="pb-card">
+      <div class="pb-num">3 h 20</div>
+      <h3>par mandat exclusif</h3>
+      <p>Temps moyen pour produire un dossier complet (pièces, contrôle, mise au registre, signature). Nora le fait en 12 minutes — vous validez.</p>
+    </div>
+    <div class="pb-card">
+      <div class="pb-num">78&nbsp;%</div>
+      <h3>des visites mal restituées</h3>
+      <p>Le vendeur attend, l'acheteur ne reçoit rien. Léa transcrit, structure et prépare l'e-mail de retour — vous l'envoyez en 1 clic.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============== OSCAR SECTION ============== -->
+<section class="oscar-section" id="oscar">
+  <div class="wrap">
+    <div class="pre-title"><span class="dot" style="background:var(--gold); box-shadow:0 0 0 4px rgba(197,169,121,.2)"></span><span class="mono">02 — L'orchestrateur</span></div>
+    <h2 style="max-width:820px">OSCAR comprend votre demande.<br/><em>Vous parlez. Il agit.</em></h2>
+    <p style="margin-top:24px">Pas de menus, pas d'arbres de décision, pas de checklist. OSCAR identifie les agents pertinents, leur passe les bons inputs, agrège les sorties et vous renvoie un livrable prêt à signer, imprimer ou publier.</p>
+
+    <div class="oscar-grid">
+      <div class="oscar-features">
+        <div class="of">
+          <div class="of-num">01</div>
+          <div><h4>Comprend l'intention</h4><p>Classification multi-label en français naturel : « prépare-moi un mandat exclu pour le 7<sup>e</sup> », « résume cette visite », « score ce CV ».</p></div>
+        </div>
+        <div class="of">
+          <div class="of-num">02</div>
+          <div><h4>Plante un plan</h4><p>1 agent, plusieurs en chaîne, ou en parallèle. Vous voyez le plan en 1 ligne avant qu'il s'exécute. Aucune boîte noire.</p></div>
+        </div>
+        <div class="of">
+          <div class="of-num">03</div>
+          <div><h4>Demande quand il faut</h4><p>Il pose <em>une seule</em> question si un input est bloquant. Sinon, il assume une hypothèse explicite et la note dans la synthèse.</p></div>
+        </div>
+        <div class="of">
+          <div class="of-num">04</div>
+          <div><h4>Persiste tout</h4><p>Chaque livrable est sauvegardé au dossier bien, au prospect, au mandat. Audit log immuable. Vous savez qui a fait quoi, quand, pourquoi.</p></div>
+        </div>
+      </div>
+
+      <div class="schema">
+        <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="50" y1="50" x2="22" y2="14"/>
+          <line x1="50" y1="50" x2="78" y2="14"/>
+          <line x1="50" y1="50" x2="9" y2="50"/>
+          <line x1="50" y1="50" x2="91" y2="50"/>
+          <line x1="50" y1="50" x2="22" y2="86"/>
+          <line x1="50" y1="50" x2="78" y2="86"/>
+          <line x1="50" y1="50" x2="38" y2="32"/>
+          <line x1="50" y1="50" x2="62" y2="32"/>
+          <line x1="50" y1="50" x2="38" y2="68"/>
+          <line x1="50" y1="50" x2="62" y2="68"/>
+        </svg>
+        <div class="schema-orbit">
+          <div class="orb tom" title="Tom">T</div>
+          <div class="orb nora" title="Nora">N</div>
+          <div class="orb sarah" title="Sarah">S</div>
+          <div class="orb lea" title="Léa">L</div>
+          <div class="orb emma" title="Emma">E</div>
+          <div class="orb stella" title="Stella">St</div>
+          <div class="orb franck" title="Franck">F</div>
+          <div class="orb hugo" title="Hugo">H</div>
+          <div class="orb ines" title="Inès">I</div>
+          <div class="orb gabriel" title="Gabriel">G</div>
+        </div>
+        <div class="schema-center">O</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== AGENTS GALLERY ============== -->
+<section class="wrap" id="agents">
+  <div class="pre-title"><span class="dot"></span><span class="mono">03 — L'équipe</span></div>
+  <h2 style="max-width:680px">Dix agents spécialisés.<br/>Chacun expert <em>d'un seul métier</em>.</h2>
+  <p style="margin-top:18px; color:var(--muted); max-width:600px; font-size:16px">Chaque agent a son propre system prompt, ses propres garde-fous, sa propre validation humaine. Vous activez les modules dont vous avez besoin.</p>
+
+  <div class="agents-grid">
+    <div class="ag-card"><span class="badge">live</span><div class="ag-head"><div class="ag-av tom">T</div><div><h4>Tom</h4><div class="role">Enquêteur mandat</div></div></div><p>Recherche d'adresse, analyse d'annonces et scoring d'opportunité de mandat à partir d'une simple URL.</p></div>
+    <div class="ag-card"><span class="badge">live</span><div class="ag-head"><div class="ag-av nora">N</div><div><h4>Nora</h4><div class="role">Administratif & mandats</div></div></div><p>Génération de mandats Hoguet, registre, contrôle conformité et envoi vers signature électronique Yousign.</p></div>
+    <div class="ag-card"><span class="badge">live</span><div class="ag-head"><div class="ag-av sarah">S</div><div><h4>Sarah</h4><div class="role">Copywriter terrain</div></div></div><p>Courriers, scripts d'appel, e-mails, SMS, séquences de relance — multi-tonalité, multi-canal.</p></div>
+    <div class="ag-card"><span class="badge">live</span><div class="ag-head"><div class="ag-av lea">L</div><div><h4>Léa</h4><div class="role">Comptes rendus</div></div></div><p>Audio, notes ou transcriptions transformés en compte rendu structuré + e-mail de retour client.</p></div>
+    <div class="ag-card"><span class="badge beta">v2</span><div class="ag-head"><div class="ag-av emma">E</div><div><h4>Emma</h4><div class="role">Présentations & pitch</div></div></div><p>Pitchs vendeur, supports de réunion, présentations services. Export PDF, PPTX et Gamma.</p></div>
+    <div class="ag-card"><span class="badge beta">v2</span><div class="ag-head"><div class="ag-av stella">St</div><div><h4>Stella</h4><div class="role">Réseaux sociaux</div></div></div><p>Calendriers éditoriaux, posts LinkedIn / Insta / TikTok, hooks, hashtags et prompts visuels.</p></div>
+    <div class="ag-card"><span class="badge beta">v2</span><div class="ag-head"><div class="ag-av franck">F</div><div><h4>Franck</h4><div class="role">Vidéaste IA</div></div></div><p>Scripts vidéo, storyboards, voix off et prompts pour Runway, Luma, Kling, Veo.</p></div>
+    <div class="ag-card"><span class="badge beta">v2</span><div class="ag-head"><div class="ag-av hugo">H</div><div><h4>Hugo</h4><div class="role">Manager & KPI</div></div></div><p>Tableaux de bord, alertes pipeline, ranking équipe, préparation des points commerciaux.</p></div>
+    <div class="ag-card"><span class="badge soon">v3</span><div class="ag-head"><div class="ag-av ines">I</div><div><h4>Inès</h4><div class="role">Recrutement</div></div></div><p>Fiches de poste, chasse LinkedIn, scoring CV, grilles d'entretien, marque employeur.</p></div>
+    <div class="ag-card"><span class="badge soon">v3</span><div class="ag-head"><div class="ag-av gabriel">G</div><div><h4>Gabriel</h4><div class="role">Pilote financier</div></div></div><p>Analyse des charges, prévision trésorerie, optimisations chiffrées, courriers de résiliation.</p></div>
+  </div>
+
+  <div style="text-align:center; margin-top:50px">
+    <a href="index.html" class="btn btn-outline lg">Découvrir chaque agent →</a>
+  </div>
+</section>
+
+<!-- ============== HOW IT WORKS ============== -->
+<section class="wrap" id="how">
+  <div class="pre-title"><span class="dot"></span><span class="mono">04 — Comment ça marche</span></div>
+  <h2 style="max-width:680px">Trois clics.<br/>Pas de menus. Pas de plomberie.</h2>
+
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-step">1</div>
+      <h3>Vous parlez à OSCAR</h3>
+      <p>Vous tapez ou dictez votre demande comme à un collaborateur. URL, photo, audio, texte — tout est accepté.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-step">2</div>
+      <h3>Il active les bons agents</h3>
+      <p>OSCAR explique son plan en une ligne, déclenche un ou plusieurs agents en parallèle ou en chaîne, et stream le résultat.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-step">3</div>
+      <h3>Vous validez et publiez</h3>
+      <p>Document juridique, e-mail, post, mandat — vous gardez la main. Signature, envoi, publication ne se font qu'au clic humain.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============== USE CASES ============== -->
+<section class="wrap" id="cas">
+  <div class="pre-title"><span class="dot"></span><span class="mono">05 — Trois scénarios concrets</span></div>
+  <h2 style="max-width:680px">Du <em>« je viens de voir une annonce »</em><br/>au mandat signé en 48 heures.</h2>
+
+  <div class="use-case">
+    <div>
+      <div class="uc-meta"><span>Cas 01</span><span class="pipe">/</span><span>Prospection éclair</span></div>
+      <h3>Une annonce concurrente devient un mandat exclusif</h3>
+      <p>Vous collez l'URL d'une annonce SeLoger. Tom retrouve l'adresse à 84 %. Sarah rédige le courrier de boîtage avec ton agence. Vous l'imprimez et tournez. J+5, le vendeur appelle. Nora prépare le mandat exclusif en 12 minutes. Yousign envoie. Mandat signé.</p>
+      <div class="uc-flow">
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#5BC0BE,#3a9c9a)">T</span>Tom</span>
+        <span class="uc-arrow">→</span>
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#E94F8A,#b13668)">S</span>Sarah</span>
+        <span class="uc-arrow">→</span>
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#9B6BFF,#6a3fcf)">N</span>Nora</span>
+      </div>
+    </div>
+    <div class="uc-visual">
+      <div style="text-align:center"><b>48 h</b><small>De l'annonce au mandat signé</small><div class="pillline"><span>boîtage 84%</span><span>1 courrier</span><span>1 visite</span><span>mandat exclusif</span></div></div>
+    </div>
+  </div>
+
+  <div class="use-case alt">
+    <div>
+      <div class="uc-meta"><span>Cas 02</span><span class="pipe">/</span><span>Visite & relation client</span></div>
+      <h3>La visite qui vend toute seule (presque)</h3>
+      <p>Vous enregistrez votre visite acheteur sur le téléphone. Léa transcrit, extrait les intentions, les objections, prépare le compte rendu interne, l'e-mail vendeur, l'e-mail acheteur, et crée 3 tâches dans le CRM. Vous validez en 2 minutes au lieu de 30.</p>
+      <div class="uc-flow">
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#A55BE0,#7a3fb0)">L</span>Léa</span>
+        <span class="uc-arrow">→</span>
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#E94F8A,#b13668)">S</span>Sarah</span>
+      </div>
+    </div>
+    <div class="uc-visual">
+      <div style="text-align:center"><b>2 min</b><small>Au lieu de 30 par visite</small><div class="pillline"><span>transcript</span><span>CR interne</span><span>email vendeur</span><span>email acheteur</span><span>3 tâches</span></div></div>
+    </div>
+  </div>
+
+  <div class="use-case">
+    <div>
+      <div class="uc-meta"><span>Cas 03</span><span class="pipe">/</span><span>Pilotage agence</span></div>
+      <h3>Le lundi matin du dirigeant</h3>
+      <p>9 h. Hugo ingère Apimo, Excel et Calendar. À 9 h 02, vous avez : 4 KPI tuiles, 3 alertes (pipeline tiède, 1 négo en sous-perf, 1 en sur-perf), un ranking trimestre, et un ordre du jour de réunion. Emma met le tout en deck si vous voulez.</p>
+      <div class="uc-flow">
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#5DBB6A,#3a8e47)">H</span>Hugo</span>
+        <span class="uc-arrow">→</span>
+        <span class="uc-pill"><span class="av-mini" style="background:linear-gradient(135deg,#F59E5B,#c47533)">E</span>Emma</span>
+      </div>
+    </div>
+    <div class="uc-visual">
+      <div style="text-align:center"><b>2 min</b><small>Tableau de bord + plan de réunion</small><div class="pillline"><span>4 KPI</span><span>3 alertes</span><span>ranking</span><span>ordre du jour</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== COMPLIANCE ============== -->
+<section class="wrap">
+  <div class="pre-title"><span class="dot"></span><span class="mono">06 — Conformité & confiance</span></div>
+  <h2 style="max-width:680px">Votre métier est régulé.<br/>Notre produit est <em>conçu pour ça</em>.</h2>
+
+  <div class="compliance">
+    <p style="font-size:16px; max-width:680px; color:var(--ink-2)">Assistimmo intègre la conformité à la racine, pas en option. Aucun e-mail prospect sans consentement. Aucun mandat sans contrôle Hoguet. Aucun courrier juridique sans validation humaine. Aucune décision d'embauche sans filtre anti-discrimination.</p>
+    <div class="comp-grid">
+      <div class="comp-item"><b>RGPD natif</b><small>Consentements, durée de conservation, droit à l'oubli, registre des traitements, hébergement UE</small></div>
+      <div class="comp-item"><b>Loi Hoguet</b><small>Carte T vérifiée, registre des mandats séquentiel et immuable, mentions obligatoires contrôlées</small></div>
+      <div class="comp-item"><b>Loi ALUR</b><small>DPE, GES et honoraires affichés sur tout support commercial généré</small></div>
+      <div class="comp-item"><b>Anti-discrimination</b><small>25 critères interdits filtrés (art. 225-1 CP) sur Inès — pre-filter et post-filter</small></div>
+      <div class="comp-item"><b>eIDAS avancé</b><small>Signature Yousign avec horodatage, journal et preuve de remise</small></div>
+      <div class="comp-item"><b>Multi-tenant</b><small>Isolation Postgres RLS au niveau base. Aucune fuite cross-agence possible</small></div>
+      <div class="comp-item"><b>Audit immuable</b><small>Chaque action sensible loggée (création doc, envoi email, signature)</small></div>
+      <div class="comp-item"><b>Validation humaine</b><small>Mandats, e-mails, signatures, posts publics, embauches — toujours un clic humain</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== PRICING TEASER ============== -->
+<section class="wrap" id="tarifs">
+  <div class="pre-title"><span class="dot"></span><span class="mono">07 — Modules à la carte</span></div>
+  <h2 style="max-width:680px">Activez ce dont vous avez besoin.<br/>Payez à l'usage <em>réel</em>.</h2>
+  <p style="margin-top:18px; color:var(--muted); max-width:600px; font-size:16px">Tarifs indicatifs pour une agence française. Tous les plans incluent l'orchestrateur OSCAR, l'audit, la conformité et le support FR.</p>
+
+  <div class="price-grid">
+    <div class="pp">
+      <h3>Solo</h3>
+      <div class="audience">Agent indépendant — 1 utilisateur</div>
+      <div class="price">89&nbsp;<small>€/mois HT</small></div>
+      <ul>
+        <li>OSCAR + 4 agents MVP (Tom, Nora, Sarah, Léa)</li>
+        <li>200 runs OSCAR / mois</li>
+        <li>30 mandats Yousign inclus</li>
+        <li>Stockage 5 GB</li>
+        <li>Support e-mail 48 h</li>
+      </ul>
+      <a href="#" class="btn btn-outline">Démarrer en solo</a>
+    </div>
+    <div class="pp featured">
+      <span class="pp-tag">Le + choisi</span>
+      <h3>Agence</h3>
+      <div class="audience">Jusqu'à 8 collaborateurs</div>
+      <div class="price">499&nbsp;<small>€/mois HT</small></div>
+      <ul>
+        <li>OSCAR + tous les agents V2 (8 agents)</li>
+        <li>1 200 runs OSCAR / mois — pool partagé</li>
+        <li>Mandats Yousign illimités (à la signature)</li>
+        <li>Stockage 100 GB · 5 modules activés</li>
+        <li>Connecteurs Apimo, Hektor, Airtable</li>
+        <li>Branding agence (logo, palette, ton)</li>
+        <li>Support prioritaire 4 h</li>
+      </ul>
+      <a href="#" class="btn btn-light" style="background:#fff; color:var(--ink)">Tester 30 jours</a>
+    </div>
+    <div class="pp">
+      <h3>Groupe</h3>
+      <div class="audience">Multi-agences · sur-mesure</div>
+      <div class="price">Sur devis</div>
+      <ul>
+        <li>Tous les agents V3 (Inès + Gabriel inclus)</li>
+        <li>Quota négocié</li>
+        <li>Single Sign-On (SSO SAML)</li>
+        <li>API & webhooks publics</li>
+        <li>DPO référent + DPA personnalisé</li>
+        <li>Audit pen-test annuel inclus</li>
+        <li>Support dédié + SLA 1 h</li>
+      </ul>
+      <a href="#" class="btn btn-outline">Parler à l'équipe</a>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:30px; color:var(--muted); font-size:13px">Les coûts variables (signatures Yousign, génération vidéo Kling/Runway, transcription &gt; quota) sont facturés à la consommation et facturables à l'agent ou à l'agence selon votre paramétrage.</p>
+</section>
+
+<!-- ============== FAQ ============== -->
+<section class="wrap">
+  <div class="pre-title" style="display:flex; justify-content:center"><span class="dot"></span><span class="mono">08 — Questions fréquentes</span></div>
+  <h2 style="text-align:center; max-width:680px; margin:0 auto">Ce que tout le monde demande<br/>avant de commencer.</h2>
+
+  <div class="faq">
+    <div class="qa open">
+      <div class="qa-q"><h4>Mes données restent-elles en Europe ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">Oui. Hébergement Supabase EU (Francfort), stockage des fichiers en région UE, modèles LLM appelés via Anthropic avec option de résidence Europe. Aucune donnée client n'est utilisée pour entraîner un modèle public.</div>
+    </div>
+    <div class="qa">
+      <div class="qa-q"><h4>OSCAR remplace-t-il un négociateur ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">Non. OSCAR remplace le travail administratif et la production de contenu — pas la relation humaine. Vos négociateurs gardent les visites, les estimations en physique, la négociation et la signature. Ils gagnent ~4 h par semaine sur tout le reste.</div>
+    </div>
+    <div class="qa">
+      <div class="qa-q"><h4>Comment sont vérifiés les modèles de mandat (Hoguet) ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">Tous les templates Nora sont validés par un avocat partenaire en droit immobilier avant mise en production. Chaque mandat généré passe un contrôle automatique de mentions obligatoires + numérotation séquentielle au registre.</div>
+    </div>
+    <div class="qa">
+      <div class="qa-q"><h4>Puis-je connecter mon CRM existant ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">Oui : Apimo et Hektor en natif (V2), import CSV / Airtable / Google Sheets en MVP. Les autres CRM via API publique ou webhooks à partir de la V3. Vos données restent maître côté CRM, Assistimmo enrichit.</div>
+    </div>
+    <div class="qa">
+      <div class="qa-q"><h4>L'IA peut-elle se tromper sur une adresse ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">Oui — c'est pour ça que Tom affiche <em>toujours</em> un score de confiance. À &lt; 70 % vous avez 3 candidats à vérifier sur le terrain. Aucune action commerciale ne se fait sur une fiabilité &lt; 50 %, c'est marqué « enquête complémentaire requise ».</div>
+    </div>
+    <div class="qa">
+      <div class="qa-q"><h4>Combien de temps pour démarrer ?</h4><div class="plus">+</div></div>
+      <div class="qa-a">15 minutes. Vous créez votre agence (carte T, logo, ton), invitez votre équipe, branchez votre Yousign et votre CRM, et OSCAR est opérationnel. Onboarding accompagné inclus à partir du plan Agence.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== FINAL CTA ============== -->
+<section class="wrap">
+  <div class="final-cta">
+    <div class="pre-title" style="justify-content:center; color:rgba(255,255,255,.8)"><span class="dot" style="background:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.18)"></span><span class="mono" style="color:#fff">Prêt à essayer ?</span></div>
+    <h2 style="margin-top:14px">Votre agence,<br/>concentrée sur ce qui compte.</h2>
+    <p>30 jours sans engagement. Onboarding personnalisé. Support en français. Vos données vous appartiennent.</p>
+    <div class="btn-cluster">
+      <a href="index.html" class="btn btn-light lg">Tester l'application →</a>
+      <a href="#" class="btn btn-ghost-l lg">Réserver une démo</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="brand" style="display:flex; align-items:center; gap:11px; margin-bottom:18px">
+        <div style="width:38px; height:38px; border-radius:9px; background:linear-gradient(135deg,var(--gold),var(--taupe)); display:grid; place-items:center; color:var(--ink); border:1px solid rgba(245,242,233,.15)">
+          <svg viewBox="0 0 100 100" width="22" height="22" fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 14 L18 84 L82 84 Z"/><path d="M50 50 L36 80 L36 84 M50 50 L64 80 L64 84"/></svg>
+        </div>
+        <div style="font-family:'Tenor Sans'; font-size:20px; color:var(--cream); letter-spacing:.01em">Assistimmo</div>
+      </div>
+      <p style="font-size:13px; color:rgba(245,242,233,.6); max-width:300px">L'Operating System des agences immobilières. Onze agents IA, un orchestrateur, une seule conversation.</p>
+    </div>
+    <div>
+      <h5>Produit</h5>
+      <ul>
+        <li><a href="#agents">Agents</a></li>
+        <li><a href="#oscar">OSCAR</a></li>
+        <li><a href="#cas">Cas d'usage</a></li>
+        <li><a href="#tarifs">Tarifs</a></li>
+        <li><a href="index.html">Démo de l'app</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Conformité</h5>
+      <ul>
+        <li><a href="#">RGPD & DPA</a></li>
+        <li><a href="#">Loi Hoguet</a></li>
+        <li><a href="#">Sécurité</a></li>
+        <li><a href="#">Sous-traitants</a></li>
+        <li><a href="#">Status</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Société</h5>
+      <ul>
+        <li><a href="#">À propos</a></li>
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Carrières</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </div>
+    <div class="copy">
+      <span>© 2026 Assistimmo SAS · Paris</span>
+      <div class="legal">
+        <a href="#">CGU</a><a href="#">CGV</a><a href="#">Mentions légales</a><a href="#">Cookies</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // FAQ accordion
+  document.querySelectorAll('.qa').forEach(qa=>qa.addEventListener('click', ()=>qa.classList.toggle('open')));
+  // Nav scroll
+  const nav = document.querySelector('.nav');
+  let last = 0;
+  window.addEventListener('scroll', ()=>{
+    const y = window.scrollY;
+    nav.style.boxShadow = y > 30 ? '0 4px 20px rgba(12,12,12,.06)' : 'none';
+    last = y;
+  });
+</script>
+</body>
+</html>
