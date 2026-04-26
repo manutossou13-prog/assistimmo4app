@@ -20,12 +20,16 @@ export default async function DashboardPage() {
     .select("role, agency:agencies(id, name, city)")
     .eq("user_id", user.id);
 
-  const hasAgency: boolean = Boolean(memberships?.length);
-  const firstMembership = memberships?.[0];
-  const agencyName = firstMembership
-    ? (firstMembership.agency as unknown as { name: string } | null)?.name ?? "non créée"
-    : "non créée";
-  const role = firstMembership?.role ?? "—";
+  // Si pas d'agence, on bascule sur l'onboarding
+  if (!memberships || memberships.length === 0) {
+    redirect("/onboarding");
+  }
+
+  const firstMembership = memberships[0];
+  const agency = firstMembership.agency as unknown as { id: string; name: string; city: string | null } | null;
+  const agencyName = agency?.name ?? "—";
+  const agencyCity = agency?.city ?? null;
+  const role = firstMembership.role;
 
   return (
     <main className="min-h-screen px-6 py-12">
@@ -79,7 +83,7 @@ export default async function DashboardPage() {
           Bonjour {profile?.full_name?.split(" ")[0] ?? "à vous"}.
         </h1>
         <p style={{ color: "var(--color-muted)", fontSize: 16, maxWidth: 580, marginBottom: 40 }}>
-          Votre compte est créé et la base de données multi-tenant Supabase est connectée. Prochaine étape : créer votre agence pour activer les agents IA.
+          {agencyName} {agencyCity ? `· ${agencyCity}` : ""} est connectée. Tom, Nora, Sarah et Léa arrivent dans les prochains jours — chaque agent un par un.
         </p>
 
         {/* Carte état */}
@@ -93,38 +97,37 @@ export default async function DashboardPage() {
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, marginBottom: 18 }}>État de votre compte</h2>
           <Row label="Email" value={profile?.email ?? user.email ?? ""} />
           <Row label="Nom" value={profile?.full_name ?? "—"} />
-          <Row label="Agence" value={agencyName} ok={hasAgency} />
-          <Row label="Rôle" value={role} ok={hasAgency} />
+          <Row label="Agence" value={agencyName} ok />
+          <Row label="Rôle" value={role} ok />
         </div>
 
-        {!hasAgency && (
-          <div style={{
-            background: "linear-gradient(135deg, var(--color-cream-2), var(--color-cream-3))",
-            border: "1px solid var(--color-line)",
-            borderRadius: 24,
-            padding: 28,
+        {/* Bloc agents — placeholder */}
+        <div style={{
+          background: "linear-gradient(135deg, var(--color-cream-2), var(--color-cream-3))",
+          border: "1px solid var(--color-line)",
+          borderRadius: 24,
+          padding: 28,
+        }}>
+          <p className="mono" style={{ marginBottom: 8 }}>Prochaine étape</p>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, marginBottom: 10 }}>Activez votre premier agent</h3>
+          <p style={{ color: "var(--color-muted)", fontSize: 14, marginBottom: 18, maxWidth: 540 }}>
+            Tom (enquêteur mandat) sera le premier agent live. Il analyse une URL d&apos;annonce et retrouve l&apos;adresse du bien à partir de DPE/ADEME, DVF et cadastre.
+          </p>
+          <span style={{
+            display: "inline-block",
+            padding: "7px 14px",
+            borderRadius: 999,
+            background: "rgba(240,196,74,.2)",
+            color: "#7d5e08",
+            fontSize: 12,
+            fontWeight: 500,
           }}>
-            <p className="mono" style={{ marginBottom: 8 }}>Prochaine étape</p>
-            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, marginBottom: 10 }}>Créer votre agence</h3>
-            <p style={{ color: "var(--color-muted)", fontSize: 14, marginBottom: 18, maxWidth: 540 }}>
-              Pour activer OSCAR et les agents IA, vous devez d&apos;abord configurer votre agence (nom, carte T, branding). Cette étape arrive très bientôt.
-            </p>
-            <span style={{
-              display: "inline-block",
-              padding: "7px 14px",
-              borderRadius: 999,
-              background: "rgba(240,196,74,.2)",
-              color: "#7d5e08",
-              fontSize: 12,
-              fontWeight: 500,
-            }}>
-              ⚙️ Onboarding agence — en construction
-            </span>
-          </div>
-        )}
+            🚧 Tom — branchement en cours
+          </span>
+        </div>
 
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.2.0 · auth Supabase live · scaffold MVP en cours
+          v0.3.0 · onboarding live · TOM en cours
         </p>
       </div>
     </main>
