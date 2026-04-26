@@ -20,7 +20,12 @@ export default async function DashboardPage() {
     .select("role, agency:agencies(id, name, city)")
     .eq("user_id", user.id);
 
-  const hasAgency = memberships && memberships.length > 0;
+  const hasAgency: boolean = Boolean(memberships?.length);
+  const firstMembership = memberships?.[0];
+  const agencyName = firstMembership
+    ? (firstMembership.agency as unknown as { name: string } | null)?.name ?? "non créée"
+    : "non créée";
+  const role = firstMembership?.role ?? "—";
 
   return (
     <main className="min-h-screen px-6 py-12">
@@ -88,12 +93,8 @@ export default async function DashboardPage() {
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, marginBottom: 18 }}>État de votre compte</h2>
           <Row label="Email" value={profile?.email ?? user.email ?? ""} />
           <Row label="Nom" value={profile?.full_name ?? "—"} />
-          <Row
-            label="Agence"
-            value={hasAgency ? (memberships![0].agency as unknown as { name: string }).name : "non créée"}
-            ok={hasAgency}
-          />
-          <Row label="Rôle" value={hasAgency ? memberships![0].role : "—"} ok={hasAgency} />
+          <Row label="Agence" value={agencyName} ok={hasAgency} />
+          <Row label="Rôle" value={role} ok={hasAgency} />
         </div>
 
         {!hasAgency && (
