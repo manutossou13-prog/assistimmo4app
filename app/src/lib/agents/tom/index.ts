@@ -151,32 +151,30 @@ function scoreCandidate(extraction: ListingExtraction, m: AdemeListingMatch): { 
   const reasons: string[] = [];
 
   // Surface (poids 35)
-  if (extraction.surface_habitable && m.surface_habitable) {
-    const diff = Math.abs(extraction.surface_habitable - m.surface_habitable);
+  if (extraction.surface_habitable && m.surface_habitable_logement) {
+    const diff = Math.abs(extraction.surface_habitable - m.surface_habitable_logement);
     if (diff <= 1) {
       score += 35;
-      reasons.push(`Surface ${m.surface_habitable}m² (match exact)`);
+      reasons.push(`Surface ${m.surface_habitable_logement}m² (match exact)`);
     } else if (diff <= 3) {
       score += 25;
-      reasons.push(`Surface ${m.surface_habitable}m² (proche, écart ${diff.toFixed(1)}m²)`);
+      reasons.push(`Surface ${m.surface_habitable_logement}m² (proche, écart ${diff.toFixed(1)}m²)`);
     } else if (diff <= 8) {
       score += 10;
-      reasons.push(`Surface ${m.surface_habitable}m² (écart ${diff.toFixed(1)}m²)`);
+      reasons.push(`Surface ${m.surface_habitable_logement}m² (écart ${diff.toFixed(1)}m²)`);
     }
   }
 
   // DPE letter (poids 25)
-  if (extraction.dpe_letter && m.classe_consommation_energie) {
-    if (extraction.dpe_letter === m.classe_consommation_energie) {
-      score += 25;
-      reasons.push(`DPE ${m.classe_consommation_energie} (match)`);
-    }
+  if (extraction.dpe_letter && m.etiquette_dpe && extraction.dpe_letter === m.etiquette_dpe) {
+    score += 25;
+    reasons.push(`DPE ${m.etiquette_dpe}`);
   }
 
   // GES letter (poids 10)
-  if (extraction.ges_letter && m.classe_estimation_ges && extraction.ges_letter === m.classe_estimation_ges) {
+  if (extraction.ges_letter && m.etiquette_ges && extraction.ges_letter === m.etiquette_ges) {
     score += 10;
-    reasons.push(`GES ${m.classe_estimation_ges}`);
+    reasons.push(`GES ${m.etiquette_ges}`);
   }
 
   // Année DPE (poids 15) — si l'annonce mentionne une année et le DPE est dans une fenêtre proche
@@ -196,8 +194,9 @@ function scoreCandidate(extraction: ListingExtraction, m: AdemeListingMatch): { 
 
   // Type bâtiment (poids 10)
   if (extraction.type && m.type_batiment) {
-    const isApt = m.type_batiment.toLowerCase().includes("appart");
-    const isHouse = m.type_batiment.toLowerCase().includes("mais");
+    const t = m.type_batiment.toLowerCase();
+    const isApt = t.includes("appart");
+    const isHouse = t.includes("mais");
     if ((extraction.type === "apartment" && isApt) || (extraction.type === "house" && isHouse)) {
       score += 10;
       reasons.push(`Type ${m.type_batiment}`);
@@ -205,9 +204,9 @@ function scoreCandidate(extraction: ListingExtraction, m: AdemeListingMatch): { 
   }
 
   // Code postal (poids 5 — bonus si match exact)
-  if (extraction.zipcode && m.code_postal && extraction.zipcode === m.code_postal) {
+  if (extraction.zipcode && m.code_postal_ban && extraction.zipcode === m.code_postal_ban) {
     score += 5;
-    reasons.push(`CP ${m.code_postal}`);
+    reasons.push(`CP ${m.code_postal_ban}`);
   }
 
   return { score: Math.min(100, score), reasons };
