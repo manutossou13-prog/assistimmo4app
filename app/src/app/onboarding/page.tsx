@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AssistimmoMark } from "@/components/brand/logo";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { createAgency } from "./actions";
 
@@ -53,7 +54,7 @@ export default async function OnboardingPage({
           >
             <AssistimmoMark size={32} />
           </div>
-          <p className="mono">Onboarding · Étape 1/2</p>
+          <p className="mono">Création de votre agence</p>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, marginTop: 10, color: "var(--color-ink)", textAlign: "center" }}>
             Créons votre agence
           </h1>
@@ -97,23 +98,7 @@ export default async function OnboardingPage({
             hint="Loi Hoguet — recommandé mais non bloquant"
           />
 
-          <button
-            type="submit"
-            style={{
-              marginTop: 14,
-              padding: "13px 20px",
-              borderRadius: 999,
-              background: "var(--color-ink)",
-              color: "var(--color-cream)",
-              border: "none",
-              fontWeight: 500,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 14px 32px rgba(12,12,12,.18)",
-            }}
-          >
-            Créer mon agence →
-          </button>
+          <SubmitButton label="Créer mon agence →" pendingLabel="Création en cours…" />
         </form>
 
         <p style={{ marginTop: 24, fontSize: 11, color: "var(--color-muted)", textAlign: "center", lineHeight: 1.5 }}>
