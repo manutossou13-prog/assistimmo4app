@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AssistimmoMark } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../login/actions";
+import { TomForm } from "./tom-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -101,33 +102,11 @@ export default async function DashboardPage() {
           <Row label="Rôle" value={role} ok />
         </div>
 
-        {/* Bloc agents — placeholder */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--color-cream-2), var(--color-cream-3))",
-          border: "1px solid var(--color-line)",
-          borderRadius: 24,
-          padding: 28,
-        }}>
-          <p className="mono" style={{ marginBottom: 8 }}>Prochaine étape</p>
-          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, marginBottom: 10 }}>Activez votre premier agent</h3>
-          <p style={{ color: "var(--color-muted)", fontSize: 14, marginBottom: 18, maxWidth: 540 }}>
-            Tom (enquêteur mandat) sera le premier agent live. Il analyse une URL d&apos;annonce et retrouve l&apos;adresse du bien à partir de DPE/ADEME, DVF et cadastre.
-          </p>
-          <span style={{
-            display: "inline-block",
-            padding: "7px 14px",
-            borderRadius: 999,
-            background: "rgba(240,196,74,.2)",
-            color: "#7d5e08",
-            fontSize: 12,
-            fontWeight: 500,
-          }}>
-            🚧 Tom — branchement en cours
-          </span>
-        </div>
+        {/* TOM — premier agent live */}
+        <TomForm />
 
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.3.0 · onboarding live · TOM en cours
+          v0.4.0 · TOM live (extraction Claude + croisement DPE/ADEME)
         </p>
       </div>
     </main>
