@@ -3,6 +3,7 @@ import { AssistimmoMark } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../login/actions";
 import { TomForm } from "./tom-form";
+import { SarahForm } from "./sarah-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -105,8 +106,11 @@ export default async function DashboardPage() {
         {/* TOM — premier agent live */}
         <TomForm />
 
+        {/* SARAH — copywriter terrain */}
+        <SarahForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.4.0 · TOM live (extraction Claude + croisement DPE/ADEME)
+          v0.5.0 · TOM (DPE/ADEME + Street View) · SARAH (copywriter multi-canal)
         </p>
       </div>
     </main>
