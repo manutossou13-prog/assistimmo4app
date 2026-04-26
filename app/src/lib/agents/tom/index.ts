@@ -1,5 +1,7 @@
 import { getAnthropic, MODELS } from "@/lib/anthropic";
 import { searchAdemeDpe, formatAdemeAddress, type AdemeListingMatch } from "./ademe";
+import { geocodeBan, type GeocodeResult } from "./geocode";
+import { buildLocationVisuals, type LocationVisuals } from "./maps";
 
 // ============================================================
 // Types
@@ -28,6 +30,8 @@ export type AddressCandidate = {
   score: number; // 0-100
   reasons: string[];
   source_match: AdemeListingMatch;
+  geo: GeocodeResult | null;
+  visuals: LocationVisuals | null;
 };
 
 export type TomResult = {
@@ -258,13 +262,23 @@ export async function runTom(input: string): Promise<TomResult> {
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  const candidates: AddressCandidate[] = scored.map((s, i) => ({
+  const baseCandidates = scored.map((s, i) => ({
     rank: i + 1,
     address: formatAdemeAddress(s.match),
     score: s.score,
     reasons: s.reasons,
     source_match: s.match,
   }));
+
+  // Étape 4 : géocodage du top 3 + URLs visuelles (en parallèle, best-effort)
+  const candidates: AddressCandidate[] = await Promise.all(
+    baseCandidates.map(async (c) => {
+      if (c.rank > 3) return { ...c, geo: null, visuals: null };
+      const geo = await geocodeBan(c.address, c.source_match.code_postal_ban);
+      const visuals = geo ? buildLocationVisuals(geo.lat, geo.lng) : null;
+      return { ...c, geo, visuals };
+    })
+  );
 
   const top = candidates[0]?.score ?? 0;
 

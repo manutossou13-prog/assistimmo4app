@@ -171,40 +171,9 @@ function ResultCard({ state }: { state: Extract<TomActionResult, { ok: true }> }
           Aucun match suffisant ({meta.ademe_total_matches} DPE consultés). Vérifiez la ville et le DPE saisis.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {candidates.map((c) => (
-            <div
-              key={c.rank}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "32px 1fr auto",
-                gap: 12,
-                alignItems: "center",
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: "1px solid var(--color-line)",
-                background: c.rank === 1 ? "linear-gradient(90deg,rgba(197,169,121,.15),transparent)" : "#fff",
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-taupe)", fontSize: 12 }}>
-                #{c.rank}
-              </span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{c.address}</div>
-                <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 3 }}>
-                  {c.reasons.join(" · ")}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 22,
-                  color: c.rank === 1 ? "var(--color-ink)" : "var(--color-muted)",
-                }}
-              >
-                {c.score}
-              </div>
-            </div>
+            <CandidateCard key={c.rank} candidate={c} />
           ))}
         </div>
       )}
@@ -238,6 +207,93 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     </h3>
   );
 }
+
+function CandidateCard({ candidate }: { candidate: Extract<TomActionResult, { ok: true }>["result"]["candidates"][number] }) {
+  const isTop = candidate.rank === 1;
+  const visuals = candidate.visuals;
+  const hasStreetView = !!visuals?.streetViewUrl;
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: visuals ? "auto 32px 1fr auto" : "32px 1fr auto",
+        gap: 14,
+        alignItems: "center",
+        padding: "12px 14px",
+        borderRadius: 14,
+        border: "1px solid var(--color-line)",
+        background: isTop ? "linear-gradient(90deg,rgba(197,169,121,.15),transparent)" : "#fff",
+      }}
+    >
+      {visuals && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {hasStreetView ? (
+            <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" title="Voir sur Google Maps">
+              <img
+                src={visuals.streetViewUrl!}
+                alt="Façade Street View"
+                width={120}
+                height={90}
+                loading="lazy"
+                style={{ borderRadius: 8, border: "1px solid var(--color-line)", display: "block", objectFit: "cover" }}
+              />
+            </a>
+          ) : (
+            <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" title="Ouvrir sur Google Maps">
+              <img
+                src={visuals.osmStaticUrl}
+                alt="Carte OSM"
+                width={120}
+                height={90}
+                loading="lazy"
+                style={{ borderRadius: 8, border: "1px solid var(--color-line)", display: "block", objectFit: "cover" }}
+              />
+            </a>
+          )}
+          <div style={{ display: "flex", gap: 6, fontSize: 9.5 }}>
+            <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" style={linkSm}>
+              Maps
+            </a>
+            <span style={{ color: "var(--color-muted)" }}>·</span>
+            <a href={visuals.geoportailLink} target="_blank" rel="noopener noreferrer" style={linkSm}>
+              Géoportail
+            </a>
+          </div>
+        </div>
+      )}
+      <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-taupe)", fontSize: 12 }}>
+        #{candidate.rank}
+      </span>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>{candidate.address}</div>
+        <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 4 }}>
+          {candidate.reasons.join(" · ")}
+        </div>
+        {visuals && !hasStreetView && (
+          <div style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 5, fontStyle: "italic" }}>
+            💡 Ajoutez `GOOGLE_MAPS_API_KEY` dans Vercel pour activer Street View (façade)
+          </div>
+        )}
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: 24,
+          color: isTop ? "var(--color-ink)" : "var(--color-muted)",
+        }}
+      >
+        {candidate.score}
+      </div>
+    </div>
+  );
+}
+
+const linkSm: React.CSSProperties = {
+  color: "var(--color-taupe-d)",
+  textDecoration: "none",
+  fontWeight: 500,
+};
 
 function Field({ label, value }: { label: string; value: string | number | null }) {
   return (
