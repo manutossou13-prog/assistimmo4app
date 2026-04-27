@@ -6,6 +6,7 @@ import { TomForm } from "./tom-form";
 import { SarahForm } from "./sarah-form";
 import { EmmaForm } from "./emma-form";
 import { StellaForm } from "./stella-form";
+import { LeaForm } from "./lea-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -117,8 +118,11 @@ export default async function DashboardPage() {
         {/* STELLA — réseaux sociaux */}
         <StellaForm />
 
+        {/* LÉA — comptes rendus & relation client */}
+        <LeaForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.7.0 · TOM v2 (URL fetch + scoring rue/numéro) · SARAH · EMMA + plein écran · STELLA
+          v0.8.0 · TOM v4 (cadastre IGN + DPE numérique) · SARAH · EMMA + présentation · STELLA · LÉA
         </p>
       </div>
     </main>

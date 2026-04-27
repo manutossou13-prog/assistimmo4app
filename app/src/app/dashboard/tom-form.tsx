@@ -97,6 +97,26 @@ export function TomForm() {
           />
         </div>
 
+        {/* Valeurs numériques DPE — game changer */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: 12, background: "rgba(197,169,121,.08)", borderRadius: 12, border: "1px dashed rgba(197,169,121,.3)" }}>
+          <Input
+            label="Conso énergie (kWh/m²/an)"
+            name="conso_ep"
+            placeholder="236"
+            type="number"
+            step="0.1"
+            hint="🎯 Ultra-discriminant (presque empreinte digitale)"
+          />
+          <Input
+            label="Émission GES (kg CO₂/m²/an)"
+            name="ges_emission"
+            placeholder="51"
+            type="number"
+            step="0.1"
+            hint="🎯 Affiché sur l'étiquette DPE complète"
+          />
+        </div>
+
         {/* Prix + agence + URL */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <Input label="Prix annonce (€)" name="price" placeholder="449000" type="number" />

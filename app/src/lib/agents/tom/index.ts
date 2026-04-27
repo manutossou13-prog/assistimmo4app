@@ -3,6 +3,7 @@ import { searchAdemeDpe, formatAdemeAddress, type AdemeListingMatch } from "./ad
 import { geocodeBan, type GeocodeResult } from "./geocode";
 import { buildLocationVisuals, type LocationVisuals } from "./maps";
 import { fetchListingText } from "./fetch-listing";
+import { getParcelleAt, type CadastreParcelle } from "./cadastre";
 
 // ============================================================
 // Types
@@ -11,9 +12,9 @@ import { fetchListingText } from "./fetch-listing";
 export type ListingExtraction = {
   city: string | null;
   zipcode: string | null;
-  neighborhood: string | null; // ex: "Petit Drancy", "Vieux Lyon"
-  street_hint: string | null; // ex: "rue Ambroise Croizat", "avenue Jules Auffret"
-  street_number_hint: string | null; // ex: "121", "14 bis"
+  neighborhood: string | null;
+  street_hint: string | null;
+  street_number_hint: string | null;
   surface_habitable: number | null;
   surface_terrain: number | null;
   rooms: number | null;
@@ -22,6 +23,8 @@ export type ListingExtraction = {
   dpe_letter: string | null;
   ges_letter: string | null;
   dpe_year: number | null;
+  conso_ep: number | null; // kWh/m²/an (énergie primaire) — TRÈS discriminant
+  ges_emission: number | null; // kg CO2/m²/an — TRÈS discriminant
   price: number | null;
   agency_name: string | null;
   features: string[];
@@ -36,6 +39,7 @@ export type AddressCandidate = {
   source_match: AdemeListingMatch;
   geo: GeocodeResult | null;
   visuals: LocationVisuals | null;
+  parcelle: CadastreParcelle | null;
 };
 
 export type TomResult = {
@@ -104,10 +108,12 @@ export type TomManualInput = {
   dpe_letter?: string | null;
   ges_letter?: string | null;
   dpe_year?: number | null;
+  conso_ep?: number | null; // kWh/m²/an
+  ges_emission?: number | null; // kg CO2/m²/an
   price?: number | null;
   agency_name?: string | null;
   source_url?: string | null;
-  notes?: string | null; // texte libre (description, paragraphes copiés depuis l'annonce, etc.)
+  notes?: string | null;
 };
 
 export async function extractListing(
@@ -186,6 +192,8 @@ ${textForLLM}
     dpe_letter: parsed.dpe_letter ?? null,
     ges_letter: parsed.ges_letter ?? null,
     dpe_year: parsed.dpe_year ?? null,
+    conso_ep: parsed.conso_ep ?? null,
+    ges_emission: parsed.ges_emission ?? null,
     price: parsed.price ?? null,
     agency_name: parsed.agency_name ?? null,
     features: Array.isArray(parsed.features) ? parsed.features : [],
@@ -208,113 +216,157 @@ function normalize(s: string | null | undefined): string {
     .trim();
 }
 
-function scoreCandidate(extraction: ListingExtraction, m: AdemeListingMatch): { score: number; reasons: string[] } {
+function scoreCandidate(
+  extraction: ListingExtraction,
+  m: AdemeListingMatch,
+  parcelle?: CadastreParcelle | null
+): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
 
   // ============================================================
-  // SIGNAUX FORTS (l'annonce mentionne explicitement la rue)
+  // ULTRA-DISCRIMINANTS (valeurs numériques précises)
   // ============================================================
 
-  // Match nom de rue (poids 40 — c'est l'or absolu)
+  // Conso énergie kWh/m²/an (poids 30 — quasi-empreinte digitale du logement)
+  if (extraction.conso_ep && m.conso_5_usages_par_m2_ep) {
+    const diff = Math.abs(extraction.conso_ep - m.conso_5_usages_par_m2_ep);
+    if (diff <= 3) {
+      score += 30;
+      reasons.push(`Conso ${m.conso_5_usages_par_m2_ep} kWh/m²/an (match)`);
+    } else if (diff <= 10) {
+      score += 18;
+      reasons.push(`Conso ${m.conso_5_usages_par_m2_ep} kWh (écart ${diff.toFixed(0)})`);
+    } else if (diff <= 25) {
+      score += 5;
+    }
+  }
+
+  // GES émission kg CO2/m²/an (poids 20)
+  if (extraction.ges_emission && m.emission_ges_5_usages_par_m2) {
+    const diff = Math.abs(extraction.ges_emission - m.emission_ges_5_usages_par_m2);
+    if (diff <= 1) {
+      score += 20;
+      reasons.push(`GES ${m.emission_ges_5_usages_par_m2} kgCO2/m² (match)`);
+    } else if (diff <= 3) {
+      score += 12;
+      reasons.push(`GES ${m.emission_ges_5_usages_par_m2} (écart ${diff.toFixed(1)})`);
+    } else if (diff <= 8) {
+      score += 4;
+    }
+  }
+
+  // Cadastre — surface terrain (poids 25 — discriminant majeur pour pavillons)
+  if (extraction.surface_terrain && parcelle?.contenance) {
+    const diff = Math.abs(extraction.surface_terrain - parcelle.contenance);
+    const ratio = diff / extraction.surface_terrain;
+    if (ratio <= 0.05) {
+      score += 25;
+      reasons.push(`Terrain ${parcelle.contenance}m² (parcelle ${parcelle.section}-${parcelle.numero})`);
+    } else if (ratio <= 0.15) {
+      score += 15;
+      reasons.push(`Terrain ${parcelle.contenance}m² (écart ${(ratio * 100).toFixed(0)}%)`);
+    } else if (ratio <= 0.30) {
+      score += 5;
+    } else {
+      // pénalité : terrain très différent de l'annonce
+      score -= 15;
+      reasons.push(`⚠ Terrain ${parcelle.contenance}m² ≠ ${extraction.surface_terrain}m²`);
+    }
+  }
+
+  // ============================================================
+  // SIGNAUX FORTS (mention explicite rue)
+  // ============================================================
+
   if (extraction.street_hint && m.nom_rue_ban) {
     const e = normalize(extraction.street_hint);
     const a = normalize(m.nom_rue_ban);
     if (e && a) {
-      // strip "rue" / "avenue" / "bd" / "boulevard" / "allée" pour matching robuste
       const stripPrefix = (x: string) =>
         x.replace(/^(rue|avenue|av|boulevard|bd|bvd|allee|allée|impasse|chemin|place|cours|quai|route|rte) /, "");
       const eClean = stripPrefix(e);
       const aClean = stripPrefix(a);
       if (eClean === aClean || aClean.includes(eClean) || eClean.includes(aClean)) {
-        score += 40;
-        reasons.push(`Rue ${m.nom_rue_ban} (match annonce)`);
+        score += 30;
+        reasons.push(`Rue ${m.nom_rue_ban}`);
       }
     }
   }
 
-  // Match numéro de rue (poids 25 — quasi-décisif si combiné avec match rue)
   if (extraction.street_number_hint && m.numero_voie_ban) {
     const e = String(extraction.street_number_hint).replace(/\s/g, "").toLowerCase();
     const a = String(m.numero_voie_ban).replace(/\s/g, "").toLowerCase();
     if (e && a && (e === a || a.startsWith(e) || e.startsWith(a))) {
-      score += 25;
+      score += 18;
       reasons.push(`N° ${m.numero_voie_ban}`);
     }
   }
 
   // ============================================================
-  // SIGNAUX MOYENS
+  // SIGNAUX SECONDAIRES
   // ============================================================
 
-  // Surface habitable (poids 25)
+  // Surface habitable (poids 18)
   if (extraction.surface_habitable && m.surface_habitable_logement) {
     const diff = Math.abs(extraction.surface_habitable - m.surface_habitable_logement);
     if (diff <= 1) {
-      score += 25;
-      reasons.push(`Surface ${m.surface_habitable_logement}m² (match exact)`);
-    } else if (diff <= 3) {
       score += 18;
-      reasons.push(`Surface ${m.surface_habitable_logement}m² (écart ${diff.toFixed(1)}m²)`);
+      reasons.push(`Surface ${m.surface_habitable_logement}m²`);
+    } else if (diff <= 3) {
+      score += 12;
     } else if (diff <= 8) {
-      score += 8;
-      reasons.push(`Surface ${m.surface_habitable_logement}m² (écart ${diff.toFixed(1)}m²)`);
+      score += 5;
     }
   }
 
-  // DPE letter (poids 15)
+  // DPE letter (poids 8 si pas de valeur numérique sinon 4)
   if (extraction.dpe_letter && m.etiquette_dpe && extraction.dpe_letter === m.etiquette_dpe) {
-    score += 15;
+    const w = extraction.conso_ep ? 4 : 8;
+    score += w;
     reasons.push(`DPE ${m.etiquette_dpe}`);
   }
 
-  // GES letter (poids 8)
+  // GES letter
   if (extraction.ges_letter && m.etiquette_ges && extraction.ges_letter === m.etiquette_ges) {
-    score += 8;
-    reasons.push(`GES ${m.etiquette_ges}`);
+    const w = extraction.ges_emission ? 3 : 6;
+    score += w;
   }
 
-  // ============================================================
-  // SIGNAUX DISCRIMINANTS / FAIBLES
-  // ============================================================
-
-  // Année DPE (poids 10)
+  // Année DPE (poids 6)
   if (extraction.dpe_year && m.date_etablissement_dpe) {
     const year = parseInt(m.date_etablissement_dpe.slice(0, 4), 10);
     if (!isNaN(year)) {
       const diff = Math.abs(extraction.dpe_year - year);
       if (diff === 0) {
-        score += 10;
+        score += 6;
         reasons.push(`DPE ${year}`);
       } else if (diff <= 1) {
-        score += 5;
-        reasons.push(`DPE ${year} (±1 an)`);
+        score += 3;
       }
     }
   }
 
-  // Type bâtiment (poids 8)
+  // Type bâtiment (poids 6 / pénalité -25 si incohérent)
   if (extraction.type && m.type_batiment) {
     const t = m.type_batiment.toLowerCase();
     const isApt = t.includes("appart");
     const isHouse = t.includes("mais");
     if ((extraction.type === "apartment" && isApt) || (extraction.type === "house" && isHouse)) {
-      score += 8;
+      score += 6;
       reasons.push(`Type ${m.type_batiment}`);
     } else if (
       (extraction.type === "apartment" && isHouse) ||
       (extraction.type === "house" && isApt)
     ) {
-      // pénalité forte : type incohérent
-      score -= 30;
-      reasons.push(`⚠ Type ADEME ${m.type_batiment} ≠ annonce`);
+      score -= 25;
+      reasons.push(`⚠ Type ${m.type_batiment} ≠ annonce`);
     }
   }
 
-  // Code postal (poids 4)
+  // CP
   if (extraction.zipcode && m.code_postal_ban && extraction.zipcode === m.code_postal_ban) {
-    score += 4;
-    reasons.push(`CP ${m.code_postal_ban}`);
+    score += 3;
   }
 
   return { score: Math.max(0, Math.min(100, score)), reasons };
@@ -402,6 +454,8 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
     dpe_letter: input.dpe_letter ?? null,
     ges_letter: input.ges_letter ?? null,
     dpe_year: input.dpe_year ?? null,
+    conso_ep: input.conso_ep ?? null,
+    ges_emission: input.ges_emission ?? null,
     price: input.price ?? null,
     agency_name: input.agency_name ?? null,
     features: hints.features,
@@ -419,7 +473,7 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
     };
   }
 
-  // ADEME query
+  // ADEME query — élargir si valeurs numériques (plus discriminant ensuite)
   let matches: AdemeListingMatch[] = [];
   try {
     matches = await searchAdemeDpe({
@@ -428,37 +482,55 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
       dpe_letter: extraction.dpe_letter ?? undefined,
       surface_min: extraction.surface_habitable ? Math.max(0, extraction.surface_habitable - 5) : undefined,
       surface_max: extraction.surface_habitable ? extraction.surface_habitable + 5 : undefined,
-      size: 50,
+      size: 80,
     });
   } catch (err) {
     console.error("[TOM] ADEME error:", err);
   }
 
-  const scored = matches
+  // Pré-scoring (sans cadastre) pour ne garder que le top 8 à enrichir
+  const preScored = matches
     .map((m) => {
       const { score, reasons } = scoreCandidate(extraction, m);
       return { match: m, score, reasons };
     })
-    .filter((s) => s.score >= 30)
+    .filter((s) => s.score >= 25)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  // Enrichissement : géocodage + cadastre pour le top 8 en parallèle
+  const enriched = await Promise.all(
+    preScored.map(async (s) => {
+      const address = formatAdemeAddress(s.match);
+      const geo = await geocodeBan(address, s.match.code_postal_ban);
+      const parcelle = geo ? await getParcelleAt(geo.lat, geo.lng) : null;
+      // Re-score avec cadastre si dispo
+      const final = parcelle
+        ? scoreCandidate(extraction, s.match, parcelle)
+        : { score: s.score, reasons: s.reasons };
+      return { match: s.match, address, geo, parcelle, ...final };
+    })
+  );
+
+  // Top 5 après cadastre
+  const finalSorted = enriched
+    .filter((e) => e.score >= 30)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  const baseCandidates = scored.map((s, i) => ({
-    rank: i + 1,
-    address: formatAdemeAddress(s.match),
-    score: s.score,
-    reasons: s.reasons,
-    source_match: s.match,
-  }));
-
-  const candidates: AddressCandidate[] = await Promise.all(
-    baseCandidates.map(async (c) => {
-      if (c.rank > 3) return { ...c, geo: null, visuals: null };
-      const geo = await geocodeBan(c.address, c.source_match.code_postal_ban);
-      const visuals = geo ? buildLocationVisuals(geo.lat, geo.lng) : null;
-      return { ...c, geo, visuals };
-    })
-  );
+  const candidates: AddressCandidate[] = finalSorted.map((s, i) => {
+    const visuals = s.geo ? buildLocationVisuals(s.geo.lat, s.geo.lng) : null;
+    return {
+      rank: i + 1,
+      address: s.address,
+      score: s.score,
+      reasons: s.reasons,
+      source_match: s.match,
+      geo: s.geo,
+      visuals,
+      parcelle: s.parcelle,
+    };
+  });
 
   const top = candidates[0]?.score ?? 0;
   let recommendation: TomResult["recommendation"];
@@ -542,10 +614,11 @@ export async function runTom(input: string): Promise<TomResult> {
   // Étape 4 : géocodage du top 3 + URLs visuelles (en parallèle, best-effort)
   const candidates: AddressCandidate[] = await Promise.all(
     baseCandidates.map(async (c) => {
-      if (c.rank > 3) return { ...c, geo: null, visuals: null };
+      if (c.rank > 3) return { ...c, geo: null, visuals: null, parcelle: null };
       const geo = await geocodeBan(c.address, c.source_match.code_postal_ban);
       const visuals = geo ? buildLocationVisuals(geo.lat, geo.lng) : null;
-      return { ...c, geo, visuals };
+      const parcelle = geo ? await getParcelleAt(geo.lat, geo.lng) : null;
+      return { ...c, geo, visuals, parcelle };
     })
   );
 

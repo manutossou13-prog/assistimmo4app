@@ -6,6 +6,7 @@ import { runTom, runTomManual, type TomResult, type TomManualInput } from "@/lib
 import { runSarah, type SarahInput, type SarahResult } from "@/lib/agents/sarah";
 import { runEmma, emmaToMarkdown, type EmmaInput, type EmmaResult } from "@/lib/agents/emma";
 import { runStella, type StellaInput, type StellaResult } from "@/lib/agents/stella";
+import { runLea, type LeaInput, type LeaResult } from "@/lib/agents/lea";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -45,6 +46,8 @@ export async function investigateListingAction(
   const dpe_letter = (String(formData.get("dpe_letter") ?? "").trim().toUpperCase() || null) as string | null;
   const ges_letter = (String(formData.get("ges_letter") ?? "").trim().toUpperCase() || null) as string | null;
   const dpe_year = parseIntOrNull(String(formData.get("dpe_year") ?? ""));
+  const conso_ep = parseFloatOrNull(String(formData.get("conso_ep") ?? ""));
+  const ges_emission = parseFloatOrNull(String(formData.get("ges_emission") ?? ""));
   const price = parseFloatOrNull(String(formData.get("price") ?? ""));
   const agency_name = String(formData.get("agency_name") ?? "").trim() || null;
   const source_url = String(formData.get("source_url") ?? "").trim() || null;
@@ -56,7 +59,8 @@ export async function investigateListingAction(
 
   const manualInput: TomManualInput = {
     city, zipcode, type, surface_habitable, surface_terrain, rooms, floor,
-    dpe_letter, ges_letter, dpe_year, price, agency_name, source_url, notes,
+    dpe_letter, ges_letter, dpe_year, conso_ep, ges_emission,
+    price, agency_name, source_url, notes,
   };
 
   const { data: run } = await supabase
@@ -574,3 +578,210 @@ const STELLA_CHANNEL_LABEL: Record<StellaInput["channel"], string> = {
   tiktok: "TikTok",
   youtube_short: "YT Shorts",
 };
+
+// ============================================================
+// LÉA — comptes rendus & relation client
+// ============================================================
+
+export type LeaActionResult =
+  | { ok: true; result: LeaResult; document_id: string | null; meeting_report_id: string | null }
+  | { ok: false; error: string };
+
+export async function generateMeetingReportAction(
+  _prev: LeaActionResult | null,
+  formData: FormData
+): Promise<LeaActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const meeting_kind = String(formData.get("meeting_kind") ?? "visit_buyer") as LeaInput["meeting_kind"];
+  const participants = String(formData.get("participants") ?? "").trim();
+  const property_context = String(formData.get("property_context") ?? "").trim() || null;
+  const objective = String(formData.get("objective") ?? "").trim() || null;
+  const raw = String(formData.get("raw") ?? "").trim();
+
+  if (raw.length < 50) {
+    return { ok: false, error: "Notes/transcript trop court (≥ 50 caractères). Colle au moins une dizaine de phrases." };
+  }
+  if (!participants) {
+    return { ok: false, error: "Indique au moins les participants (ex: \"M. Martin acheteur, Marie L. négo\")." };
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `lea.cr: ${meeting_kind}`,
+      plan: { agents: ["lea"], steps: ["structure", "extract_intentions", "draft_email"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runLea({
+      meeting_kind,
+      participants,
+      property_context,
+      objective,
+      raw,
+      agency_name: agency.name,
+      agent_name: profile?.full_name ?? "votre négociateur",
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "lea",
+        input: { meeting_kind, participants, raw_preview: raw.slice(0, 400) },
+        output: {
+          context: result.context,
+          key_points_count: result.key_points.length,
+          tasks_count: result.tasks.length,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    // Persist meeting_report
+    const { data: mr } = await supabase
+      .from("meeting_reports")
+      .insert({
+        agency_id: agency.id,
+        kind: meeting_kind,
+        participants: { raw: participants },
+        transcript: raw,
+        summary_md: buildSummaryMarkdown(result),
+        next_actions: result.tasks as unknown as Record<string, unknown>[],
+      })
+      .select("id")
+      .single();
+    const mrId = mr?.id ?? null;
+
+    // Persist email draft as document
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "email" as const,
+        title: `CR ${LEA_KIND_LABEL[meeting_kind]} — email retour`,
+        format: "md" as const,
+        metadata: {
+          lea_run_id: runId,
+          meeting_report_id: mrId,
+          meeting_kind,
+          email_body: result.client_email_draft,
+          internal_summary: result.internal_summary,
+        },
+      })
+      .select("id")
+      .single();
+
+    // Crée des tasks dans la table dédiée
+    if (result.tasks.length > 0) {
+      const taskInserts = result.tasks.map((t) => ({
+        agency_id: agency.id,
+        assignee_user_id: user.id,
+        title: t.title,
+        status: "open" as const,
+        created_by_agent: "lea",
+        due_at: null,
+      }));
+      await supabase.from("tasks").insert(taskInserts);
+    }
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return {
+      ok: true,
+      result,
+      document_id: (doc?.id as string) ?? null,
+      meeting_report_id: mrId,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Léa inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "lea",
+        input: { meeting_kind, participants, raw_preview: raw.slice(0, 400) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+const LEA_KIND_LABEL: Record<LeaInput["meeting_kind"], string> = {
+  visit_buyer: "Visite acheteur",
+  visit_seller: "Visite vendeur",
+  estimation: "Estimation",
+  team: "Réunion équipe",
+  client_call: "Appel client",
+  negotiation: "Négociation",
+};
+
+function buildSummaryMarkdown(r: LeaResult): string {
+  const lines: string[] = [];
+  lines.push(`## Contexte`, "", r.context, "");
+  if (r.key_points.length) {
+    lines.push(`## Points clés`, "");
+    r.key_points.forEach((p) => lines.push(`- ${p}`));
+    lines.push("");
+  }
+  if (r.intentions.length) {
+    lines.push(`## Intentions`, "");
+    r.intentions.forEach((p) => lines.push(`- ${p}`));
+    lines.push("");
+  }
+  if (r.objections.length) {
+    lines.push(`## Objections`, "");
+    r.objections.forEach((p) => lines.push(`- ${p}`));
+    lines.push("");
+  }
+  if (r.engagements.length) {
+    lines.push(`## Engagements`, "");
+    r.engagements.forEach((p) => lines.push(`- ${p}`));
+    lines.push("");
+  }
+  if (r.vigilance.length) {
+    lines.push(`## Points de vigilance`, "");
+    r.vigilance.forEach((p) => lines.push(`- ⚠ ${p}`));
+    lines.push("");
+  }
+  if (r.tasks.length) {
+    lines.push(`## Tâches`, "");
+    r.tasks.forEach((t) => lines.push(`- [ ] **${t.title}** — ${t.assignee} · ${t.due_when}`));
+    lines.push("");
+  }
+  if (r.next_meeting) lines.push(`## Prochain rdv\n\n${r.next_meeting}\n`);
+  if (r.client_email_draft) lines.push(`## Email retour client (draft)\n\n${r.client_email_draft}`);
+  return lines.join("\n");
+}

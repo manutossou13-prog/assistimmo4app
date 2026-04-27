@@ -24,6 +24,8 @@ const SELECT_FIELDS = [
   "nom_commune_ban",
   "code_postal_ban",
   "complement_adresse_logement",
+  "conso_5_usages_par_m2_ep",
+  "emission_ges_5_usages_par_m2",
 ].join(",");
 
 export type AdemeListingMatch = {
@@ -40,6 +42,8 @@ export type AdemeListingMatch = {
   nom_commune_ban?: string;
   code_postal_ban?: string;
   complement_adresse_logement?: string;
+  conso_5_usages_par_m2_ep?: number; // kWh/m²/an (énergie primaire)
+  emission_ges_5_usages_par_m2?: number; // kg CO2/m²/an
   raw: Record<string, unknown>;
 };
 
@@ -101,6 +105,8 @@ export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMat
     nom_commune_ban: r.nom_commune_ban as string | undefined,
     code_postal_ban: r.code_postal_ban as string | undefined,
     complement_adresse_logement: r.complement_adresse_logement as string | undefined,
+    conso_5_usages_par_m2_ep: r.conso_5_usages_par_m2_ep as number | undefined,
+    emission_ges_5_usages_par_m2: r.emission_ges_5_usages_par_m2 as number | undefined,
     raw: r,
   }));
 }
