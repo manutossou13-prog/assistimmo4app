@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { runTom, type TomResult } from "@/lib/agents/tom";
+import { runTom, runTomManual, type TomResult, type TomManualInput } from "@/lib/agents/tom";
 import { runSarah, type SarahInput, type SarahResult } from "@/lib/agents/sarah";
 import { runEmma, emmaToMarkdown, type EmmaInput, type EmmaResult } from "@/lib/agents/emma";
 import { runStella, type StellaInput, type StellaResult } from "@/lib/agents/stella";
@@ -30,19 +30,42 @@ export async function investigateListingAction(
   const agencyId = memberships?.[0]?.agency_id;
   if (!agencyId) return { ok: false, error: "Aucune agence rattachée." };
 
-  const input = String(formData.get("listing") ?? "").trim();
-  if (input.length < 20) {
-    return { ok: false, error: "Coller une URL ou un texte d'annonce (≥ 20 caractères)." };
+  // Lecture des champs structurés (mode manuel)
+  const city = String(formData.get("city") ?? "").trim();
+  const zipcode = String(formData.get("zipcode") ?? "").trim() || null;
+  const typeRaw = String(formData.get("type") ?? "").trim();
+  const type =
+    typeRaw === "house" || typeRaw === "apartment" || typeRaw === "land" || typeRaw === "commercial"
+      ? (typeRaw as TomManualInput["type"])
+      : null;
+  const surface_habitable = parseFloatOrNull(String(formData.get("surface_habitable") ?? ""));
+  const surface_terrain = parseFloatOrNull(String(formData.get("surface_terrain") ?? ""));
+  const rooms = parseIntOrNull(String(formData.get("rooms") ?? ""));
+  const floor = parseIntOrNull(String(formData.get("floor") ?? ""));
+  const dpe_letter = (String(formData.get("dpe_letter") ?? "").trim().toUpperCase() || null) as string | null;
+  const ges_letter = (String(formData.get("ges_letter") ?? "").trim().toUpperCase() || null) as string | null;
+  const dpe_year = parseIntOrNull(String(formData.get("dpe_year") ?? ""));
+  const price = parseFloatOrNull(String(formData.get("price") ?? ""));
+  const agency_name = String(formData.get("agency_name") ?? "").trim() || null;
+  const source_url = String(formData.get("source_url") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!city || city.length < 2) {
+    return { ok: false, error: "La ville est requise (saisie obligatoire)." };
   }
 
-  // Trace du run
+  const manualInput: TomManualInput = {
+    city, zipcode, type, surface_habitable, surface_terrain, rooms, floor,
+    dpe_letter, ges_letter, dpe_year, price, agency_name, source_url, notes,
+  };
+
   const { data: run } = await supabase
     .from("agent_runs")
     .insert({
       agency_id: agencyId,
       user_id: user.id,
-      intent: `tom.investigate: ${input.slice(0, 80)}`,
-      plan: { agents: ["tom"], steps: ["extract", "ademe_query", "score"] },
+      intent: `tom.manual: ${city} ${dpe_letter ?? ""} ${surface_habitable ?? ""}m²`.trim(),
+      plan: { agents: ["tom"], steps: ["ademe_query", "score", "geocode"] },
       status: "running",
     })
     .select("id")
@@ -51,14 +74,14 @@ export async function investigateListingAction(
   const runId = run?.id ?? null;
 
   try {
-    const result = await runTom(input);
+    const result = await runTomManual(manualInput);
 
     // Persist agent_step
     if (runId) {
       await supabase.from("agent_steps").insert({
         run_id: runId,
         agent_slug: "tom",
-        input: { listing: input.slice(0, 500) },
+        input: manualInput as unknown as Record<string, unknown>,
         output: {
           extraction: result.extraction,
           candidates: result.candidates.map((c) => ({ rank: c.rank, address: c.address, score: c.score })),
@@ -92,7 +115,7 @@ export async function investigateListingAction(
           dpe_letter: result.extraction.dpe_letter,
           ges_letter: result.extraction.ges_letter,
           price: result.extraction.price,
-          source_url: input.startsWith("http") ? input : null,
+          source_url: source_url,
           confidence_score: result.confidence,
           metadata: {
             tom_run_id: runId,
@@ -124,12 +147,22 @@ export async function investigateListingAction(
       await supabase.from("agent_steps").insert({
         run_id: runId,
         agent_slug: "tom",
-        input: { listing: input.slice(0, 500) },
+        input: manualInput as unknown as Record<string, unknown>,
         error: message,
       });
     }
     return { ok: false, error: message };
   }
+}
+
+function parseFloatOrNull(s: string): number | null {
+  const cleaned = s.replace(/\s/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+function parseIntOrNull(s: string): number | null {
+  const n = parseInt(s, 10);
+  return isNaN(n) ? null : n;
 }
 
 // ============================================================

@@ -47,7 +47,7 @@ export type TomResult = {
   meta: {
     ademe_total_matches: number;
     duration_ms: number;
-    source: "url" | "text";
+    source: "url" | "text" | "manual";
   };
 };
 
@@ -87,9 +87,27 @@ const EXTRACTION_SCHEMA_HINT = {
 };
 
 export type ExtractionContext = {
-  source: "url" | "text";
+  source: "url" | "text" | "manual";
   fetchedFrom?: string;
   truncated?: boolean;
+};
+
+// Inputs structurés saisis manuellement par l'utilisateur
+export type TomManualInput = {
+  city: string;
+  zipcode?: string | null;
+  type?: ListingExtraction["type"];
+  surface_habitable?: number | null;
+  surface_terrain?: number | null;
+  rooms?: number | null;
+  floor?: number | null;
+  dpe_letter?: string | null;
+  ges_letter?: string | null;
+  dpe_year?: number | null;
+  price?: number | null;
+  agency_name?: string | null;
+  source_url?: string | null;
+  notes?: string | null; // texte libre (description, paragraphes copiés depuis l'annonce, etc.)
 };
 
 export async function extractListing(
@@ -305,6 +323,170 @@ function scoreCandidate(extraction: ListingExtraction, m: AdemeListingMatch): { 
 // ============================================================
 // 3. Pipeline complet TOM
 // ============================================================
+
+/**
+ * Si l'utilisateur a fourni des "notes" (texte libre / description), on demande à Claude
+ * de tirer 3 indices d'adresse (rue, numéro, quartier). Léger appel Haiku.
+ * Si pas de notes ou échec → on renvoie tout à null.
+ */
+async function extractHintsFromNotes(notes: string | null | undefined): Promise<{
+  neighborhood: string | null;
+  street_hint: string | null;
+  street_number_hint: string | null;
+  features: string[];
+}> {
+  if (!notes || notes.trim().length < 20) {
+    return { neighborhood: null, street_hint: null, street_number_hint: null, features: [] };
+  }
+  try {
+    const anthropic = getAnthropic();
+    const r = await anthropic.messages.create({
+      model: MODELS.fast,
+      max_tokens: 400,
+      system: `Tu extrais des indices d'adresse depuis une description d'annonce immobilière. Si une info n'est pas EXPLICITEMENT mentionnée, mets null. Pas d'invention. Sortie JSON strict.`,
+      messages: [
+        {
+          role: "user",
+          content: `Extrait 4 champs depuis cette description :
+- neighborhood : nom de quartier mentionné (ex: "Petit Drancy", "Centre", "Vieux Lyon"), null sinon
+- street_hint : nom de rue/avenue mentionné (ex: "rue de la République"), null sinon. NE DEVINE PAS depuis l'agence.
+- street_number_hint : numéro de rue mentionné, null sinon
+- features : 5-10 atouts/équipements distinctifs (jardin, garage, cheminée, sous-sol, terrasse...)
+
+Réponds UNIQUEMENT avec un JSON {neighborhood, street_hint, street_number_hint, features:[]} (pas de markdown).
+
+Description :
+"""
+${notes.slice(0, 4000)}
+"""`,
+        },
+      ],
+    });
+    const block = r.content.find((c) => c.type === "text");
+    if (!block || block.type !== "text") throw new Error("no text");
+    let cleaned = block.text.trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(cleaned);
+    return {
+      neighborhood: parsed.neighborhood ?? null,
+      street_hint: parsed.street_hint ?? null,
+      street_number_hint: parsed.street_number_hint ?? null,
+      features: Array.isArray(parsed.features) ? parsed.features : [],
+    };
+  } catch (err) {
+    console.error("[TOM] extractHintsFromNotes error:", err);
+    return { neighborhood: null, street_hint: null, street_number_hint: null, features: [] };
+  }
+}
+
+/**
+ * Pipeline TOM en mode MANUEL — l'utilisateur saisit directement les caractéristiques.
+ * Pas de Claude pour les champs structurés, juste pour les notes optionnelles.
+ */
+export async function runTomManual(input: TomManualInput): Promise<TomResult> {
+  const t0 = Date.now();
+
+  // Extrait éventuels hints depuis notes libres
+  const hints = await extractHintsFromNotes(input.notes ?? null);
+
+  const extraction: ListingExtraction = {
+    city: input.city || null,
+    zipcode: input.zipcode ?? null,
+    neighborhood: hints.neighborhood,
+    street_hint: hints.street_hint,
+    street_number_hint: hints.street_number_hint,
+    surface_habitable: input.surface_habitable ?? null,
+    surface_terrain: input.surface_terrain ?? null,
+    rooms: input.rooms ?? null,
+    floor: input.floor ?? null,
+    type: input.type ?? null,
+    dpe_letter: input.dpe_letter ?? null,
+    ges_letter: input.ges_letter ?? null,
+    dpe_year: input.dpe_year ?? null,
+    price: input.price ?? null,
+    agency_name: input.agency_name ?? null,
+    features: hints.features,
+    notes: input.notes ?? null,
+  };
+
+  if (!extraction.city) {
+    return {
+      extraction,
+      candidates: [],
+      confidence: 0,
+      recommendation: "abandonner",
+      priority: "basse",
+      meta: { ademe_total_matches: 0, duration_ms: Date.now() - t0, source: "manual" },
+    };
+  }
+
+  // ADEME query
+  let matches: AdemeListingMatch[] = [];
+  try {
+    matches = await searchAdemeDpe({
+      city: extraction.city,
+      zipcode: extraction.zipcode ?? undefined,
+      dpe_letter: extraction.dpe_letter ?? undefined,
+      surface_min: extraction.surface_habitable ? Math.max(0, extraction.surface_habitable - 5) : undefined,
+      surface_max: extraction.surface_habitable ? extraction.surface_habitable + 5 : undefined,
+      size: 50,
+    });
+  } catch (err) {
+    console.error("[TOM] ADEME error:", err);
+  }
+
+  const scored = matches
+    .map((m) => {
+      const { score, reasons } = scoreCandidate(extraction, m);
+      return { match: m, score, reasons };
+    })
+    .filter((s) => s.score >= 30)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  const baseCandidates = scored.map((s, i) => ({
+    rank: i + 1,
+    address: formatAdemeAddress(s.match),
+    score: s.score,
+    reasons: s.reasons,
+    source_match: s.match,
+  }));
+
+  const candidates: AddressCandidate[] = await Promise.all(
+    baseCandidates.map(async (c) => {
+      if (c.rank > 3) return { ...c, geo: null, visuals: null };
+      const geo = await geocodeBan(c.address, c.source_match.code_postal_ban);
+      const visuals = geo ? buildLocationVisuals(geo.lat, geo.lng) : null;
+      return { ...c, geo, visuals };
+    })
+  );
+
+  const top = candidates[0]?.score ?? 0;
+  let recommendation: TomResult["recommendation"];
+  let priority: TomResult["priority"];
+  if (top >= 70) {
+    recommendation = "boitage_immediat";
+    priority = "haute";
+  } else if (top >= 50) {
+    recommendation = "enquete_complementaire";
+    priority = "moyenne";
+  } else {
+    recommendation = "abandonner";
+    priority = "basse";
+  }
+
+  return {
+    extraction,
+    candidates,
+    confidence: top,
+    recommendation,
+    priority,
+    meta: {
+      ademe_total_matches: matches.length,
+      duration_ms: Date.now() - t0,
+      source: "manual",
+    },
+  };
+}
 
 export async function runTom(input: string): Promise<TomResult> {
   const t0 = Date.now();

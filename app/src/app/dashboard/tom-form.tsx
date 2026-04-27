@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { investigateListingAction, type TomActionResult } from "./actions";
 
+const DPE_LETTERS = ["", "A", "B", "C", "D", "E", "F", "G"] as const;
+
 export function TomForm() {
   const [state, formAction] = useActionState<TomActionResult | null, FormData>(
     investigateListingAction,
@@ -38,34 +40,79 @@ export function TomForm() {
           T
         </span>
         <div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, margin: 0 }}>Tom · Enquêteur mandat</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, margin: 0 }}>
+            Tom · Enquêteur mandat
+          </h2>
           <p style={{ fontSize: 12, color: "var(--color-muted)", margin: 0, marginTop: 2 }}>
-            Colle l&apos;URL d&apos;une annonce (SeLoger, LeBonCoin, PAP…) ou son texte. Tom retrouve l&apos;adresse via DPE/ADEME.
+            Saisis ce que tu lis sur l&apos;annonce — Tom croise avec l&apos;ADEME et te retourne les adresses probables.
           </p>
         </div>
       </div>
 
-      <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <textarea
-          name="listing"
-          placeholder="https://www.seloger.com/annonces/...
-ou colle directement le texte de l'annonce"
-          required
-          rows={5}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            borderRadius: 14,
-            border: "1px solid var(--color-line)",
-            background: "#fff",
-            fontSize: 13.5,
-            fontFamily: "inherit",
-            color: "var(--color-ink)",
-            outline: "none",
-            resize: "vertical",
-            minHeight: 100,
-          }}
+      <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Ville obligatoire + type */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 1fr", gap: 10 }}>
+          <Input label="Ville *" name="city" required placeholder="Drancy" />
+          <Input label="Code postal" name="zipcode" placeholder="93700" maxLength={5} />
+          <Select label="Type de bien *" name="type" defaultValue="house">
+            <option value="house">Maison / Pavillon</option>
+            <option value="apartment">Appartement</option>
+            <option value="land">Terrain</option>
+            <option value="commercial">Commercial</option>
+          </Select>
+        </div>
+
+        {/* Surfaces + pièces */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 80px", gap: 10 }}>
+          <Input label="Surface habitable (m²)" name="surface_habitable" placeholder="95" type="number" step="0.1" />
+          <Input label="Surface terrain (m²)" name="surface_terrain" placeholder="200" type="number" step="0.1" hint="Discriminant pour les pavillons" />
+          <Input label="Pièces" name="rooms" placeholder="5" type="number" />
+          <Input label="Étage" name="floor" placeholder="—" type="number" hint="Vide pour maison" />
+        </div>
+
+        {/* DPE / GES / année */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <Select label="DPE (étiquette énergie)" name="dpe_letter" defaultValue="D">
+            {DPE_LETTERS.map((l) => (
+              <option key={l} value={l}>
+                {l || "—"}
+              </option>
+            ))}
+          </Select>
+          <Select label="GES (étiquette climat)" name="ges_letter" defaultValue="">
+            {DPE_LETTERS.map((l) => (
+              <option key={l} value={l}>
+                {l || "—"}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Année du DPE"
+            name="dpe_year"
+            placeholder="2024"
+            type="number"
+            min={2000}
+            max={2030}
+            hint="Si visible sur l'annonce"
+          />
+        </div>
+
+        {/* Prix + agence + URL */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <Input label="Prix annonce (€)" name="price" placeholder="449000" type="number" />
+          <Input label="Agence qui commercialise" name="agency_name" placeholder="LAFORÊT, Foncia, Century21..." />
+          <Input label="URL de l'annonce" name="source_url" placeholder="https://www.seloger.com/..." type="url" />
+        </div>
+
+        {/* Notes libres */}
+        <Textarea
+          label="Notes / description (optionnel)"
+          name="notes"
+          rows={3}
+          placeholder="Ex: Pavillon individuel quartier Petit Drancy, jardin sud, sous-sol total, garage 2 voitures, cheminée d'origine, proche RER B Le Bourget."
+          hint="Plus tu donnes de détails (quartier, atouts), plus Tom peut discriminer."
         />
+
         <SubmitButton />
       </form>
 
@@ -95,7 +142,7 @@ function SubmitButton() {
         boxShadow: "0 14px 32px rgba(12,12,12,.18)",
       }}
     >
-      {pending ? "Tom enquête… (≈ 8 s)" : "Lancer Tom →"}
+      {pending ? "Tom enquête… (≈ 4 s)" : "Lancer Tom →"}
     </button>
   );
 }
@@ -146,42 +193,33 @@ function ResultCard({ state }: { state: Extract<TomActionResult, { ok: true }> }
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 16 }}>
         <span style={{ ...pill, background: priorityColor[priority] }}>{recoLabel[recommendation]}</span>
         <span style={pill}>Fiabilité {confidence}%</span>
-        <span style={pill}>{candidates.length} candidat{candidates.length > 1 ? "s" : ""} · {meta.ademe_total_matches} DPE consultés</span>
+        <span style={pill}>
+          {candidates.length} candidat{candidates.length > 1 ? "s" : ""} · {meta.ademe_total_matches} DPE consultés
+        </span>
         <span style={pill}>{(meta.duration_ms / 1000).toFixed(1)} s</span>
         {property_id && <span style={{ ...pill, background: "rgba(93,187,106,.15)" }}>Sauvegardé en base</span>}
       </div>
 
-      <SectionTitle>Extraction · {meta.source === "url" ? "🌐 URL fetchée" : "📝 Texte collé"}</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10, marginBottom: 14 }}>
-        <Field label="Ville" value={extraction.city} />
-        <Field label="CP" value={extraction.zipcode} />
-        <Field label="Quartier" value={extraction.neighborhood} />
-        <Field label="Rue" value={extraction.street_hint} />
-        <Field label="N°" value={extraction.street_number_hint} />
-        <Field label="Type" value={extraction.type} />
-        <Field label="Surface hab." value={extraction.surface_habitable ? `${extraction.surface_habitable} m²` : null} />
-        <Field label="Terrain" value={extraction.surface_terrain ? `${extraction.surface_terrain} m²` : null} />
-        <Field label="Pièces" value={extraction.rooms} />
-        <Field label="DPE" value={extraction.dpe_letter} />
-        <Field label="GES" value={extraction.ges_letter} />
-        <Field label="Année DPE" value={extraction.dpe_year} />
-        <Field label="Prix" value={extraction.price ? `${extraction.price.toLocaleString("fr-FR")} €` : null} />
-        <Field label="Agence" value={extraction.agency_name} />
-      </div>
-      {extraction.features && extraction.features.length > 0 && (
-        <div style={{ marginBottom: 18, display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {extraction.features.map((f, i) => (
-            <span key={i} style={{ ...pill, fontSize: 11 }}>
-              {f}
-            </span>
-          ))}
+      {(extraction.neighborhood || extraction.street_hint || extraction.features.length > 0) && (
+        <div style={{ marginBottom: 16, padding: 12, background: "rgba(197,169,121,.08)", borderRadius: 10, border: "1px solid rgba(197,169,121,.25)" }}>
+          <SectionTitle>Indices extraits des notes</SectionTitle>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+            {extraction.neighborhood && <span style={pill}>📍 {extraction.neighborhood}</span>}
+            {extraction.street_hint && <span style={pill}>🛣 {extraction.street_hint}</span>}
+            {extraction.street_number_hint && <span style={pill}>n° {extraction.street_number_hint}</span>}
+            {extraction.features.map((f, i) => (
+              <span key={i} style={{ ...pill, fontSize: 11 }}>
+                {f}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
       <SectionTitle>Adresses candidates</SectionTitle>
       {candidates.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--color-muted)" }}>
-          Aucun match suffisant ({meta.ademe_total_matches} DPE consultés). Vérifiez la ville et le DPE saisis.
+          Aucun candidat. Soit le DPE est trop ancien (avant juillet 2021) et n&apos;est pas dans le dataset moderne, soit le DPE / la surface ne correspondent pas. Essaie de retirer le DPE pour élargir.
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -191,33 +229,6 @@ function ResultCard({ state }: { state: Extract<TomActionResult, { ok: true }> }
         </div>
       )}
     </div>
-  );
-}
-
-const pill: React.CSSProperties = {
-  display: "inline-block",
-  padding: "4px 11px",
-  borderRadius: 999,
-  fontSize: 11.5,
-  fontWeight: 500,
-  background: "var(--color-cream-3)",
-  color: "var(--color-ink-2)",
-};
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3
-      style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: 10.5,
-        letterSpacing: ".18em",
-        textTransform: "uppercase",
-        color: "var(--color-taupe)",
-        margin: "0 0 10px",
-      }}
-    >
-      {children}
-    </h3>
   );
 }
 
@@ -241,29 +252,16 @@ function CandidateCard({ candidate }: { candidate: Extract<TomActionResult, { ok
     >
       {visuals && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {hasStreetView ? (
-            <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" title="Voir sur Google Maps">
-              <img
-                src={visuals.streetViewUrl!}
-                alt="Façade Street View"
-                width={120}
-                height={90}
-                loading="lazy"
-                style={{ borderRadius: 8, border: "1px solid var(--color-line)", display: "block", objectFit: "cover" }}
-              />
-            </a>
-          ) : (
-            <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" title="Ouvrir sur Google Maps">
-              <img
-                src={visuals.osmStaticUrl}
-                alt="Carte OSM"
-                width={120}
-                height={90}
-                loading="lazy"
-                style={{ borderRadius: 8, border: "1px solid var(--color-line)", display: "block", objectFit: "cover" }}
-              />
-            </a>
-          )}
+          <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" title="Voir sur Google Maps">
+            <img
+              src={hasStreetView ? visuals.streetViewUrl! : visuals.osmStaticUrl}
+              alt={hasStreetView ? "Façade Street View" : "Carte OSM"}
+              width={120}
+              height={90}
+              loading="lazy"
+              style={{ borderRadius: 8, border: "1px solid var(--color-line)", display: "block", objectFit: "cover" }}
+            />
+          </a>
           <div style={{ display: "flex", gap: 6, fontSize: 9.5 }}>
             <a href={visuals.mapsLink} target="_blank" rel="noopener noreferrer" style={linkSm}>
               Maps
@@ -283,11 +281,6 @@ function CandidateCard({ candidate }: { candidate: Extract<TomActionResult, { ok
         <div style={{ fontSize: 11.5, color: "var(--color-muted)", marginTop: 4 }}>
           {candidate.reasons.join(" · ")}
         </div>
-        {visuals && !hasStreetView && (
-          <div style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 5, fontStyle: "italic" }}>
-            💡 Ajoutez `GOOGLE_MAPS_API_KEY` dans Vercel pour activer Street View (façade)
-          </div>
-        )}
       </div>
       <div
         style={{
@@ -308,22 +301,138 @@ const linkSm: React.CSSProperties = {
   fontWeight: 500,
 };
 
-function Field({ label, value }: { label: string; value: string | number | null }) {
+function Input({
+  label, name, required, placeholder, type = "text", maxLength, min, max, step, hint,
+}: {
+  label: string;
+  name: string;
+  required?: boolean;
+  placeholder?: string;
+  type?: string;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  step?: string;
+  hint?: string;
+}) {
   return (
-    <div
-      style={{
-        padding: "8px 10px",
-        background: "rgba(255,255,255,.7)",
-        border: "1px solid var(--color-line)",
-        borderRadius: 10,
-      }}
-    >
-      <div style={{ fontSize: 10.5, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--color-muted)" }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: value === null ? "var(--color-muted)" : "var(--color-ink)" }}>
-        {value === null ? "—" : value}
-      </div>
-    </div>
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 11.5, color: "var(--color-muted)", fontWeight: 500 }}>{label}</span>
+      <input
+        name={name}
+        type={type}
+        required={required}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        min={min}
+        max={max}
+        step={step}
+        style={{
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid var(--color-line)",
+          background: "#fff",
+          fontSize: 13.5,
+          fontFamily: "inherit",
+          color: "var(--color-ink)",
+          outline: "none",
+          width: "100%",
+        }}
+      />
+      {hint && <span style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 1 }}>{hint}</span>}
+    </label>
   );
 }
+
+function Textarea({
+  label, name, rows = 3, placeholder, hint,
+}: {
+  label: string;
+  name: string;
+  rows?: number;
+  placeholder?: string;
+  hint?: string;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 11.5, color: "var(--color-muted)", fontWeight: 500 }}>{label}</span>
+      <textarea
+        name={name}
+        rows={rows}
+        placeholder={placeholder}
+        style={{
+          padding: "11px 13px",
+          borderRadius: 10,
+          border: "1px solid var(--color-line)",
+          background: "#fff",
+          fontSize: 13.5,
+          fontFamily: "inherit",
+          color: "var(--color-ink)",
+          outline: "none",
+          resize: "vertical",
+        }}
+      />
+      {hint && <span style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 1 }}>{hint}</span>}
+    </label>
+  );
+}
+
+function Select({
+  label, name, defaultValue, children,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 11.5, color: "var(--color-muted)", fontWeight: 500 }}>{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        style={{
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid var(--color-line)",
+          background: "#fff",
+          fontSize: 13.5,
+          fontFamily: "inherit",
+          color: "var(--color-ink)",
+          outline: "none",
+          appearance: "none",
+          cursor: "pointer",
+        }}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 10.5,
+        letterSpacing: ".18em",
+        textTransform: "uppercase",
+        color: "var(--color-taupe)",
+        margin: "0 0 8px",
+      }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+const pill: React.CSSProperties = {
+  display: "inline-block",
+  padding: "4px 11px",
+  borderRadius: 999,
+  fontSize: 11.5,
+  fontWeight: 500,
+  background: "var(--color-cream-3)",
+  color: "var(--color-ink-2)",
+};
