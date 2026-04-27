@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { runTom, type TomResult } from "@/lib/agents/tom";
 import { runSarah, type SarahInput, type SarahResult } from "@/lib/agents/sarah";
+import { runEmma, emmaToMarkdown, type EmmaInput, type EmmaResult } from "@/lib/agents/emma";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -275,3 +276,146 @@ const OBJECTIVE_TITLE: Record<SarahInput["objective"], string> = {
   remerciement: "Remerciement",
   confirmation_rdv: "Confirmation rendez-vous",
 };
+
+// ============================================================
+// EMMA — présentations & pitch
+// ============================================================
+
+export type EmmaActionResult =
+  | { ok: true; result: EmmaResult; markdown: string; document_id: string | null }
+  | { ok: false; error: string };
+
+export async function generatePresentationAction(
+  _prev: EmmaActionResult | null,
+  formData: FormData
+): Promise<EmmaActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const topic = String(formData.get("topic") ?? "").trim();
+  const audience = String(formData.get("audience") ?? "vendeur") as EmmaInput["audience"];
+  const objective = String(formData.get("objective") ?? "obtenir_mandat") as EmmaInput["objective"];
+  const tone = String(formData.get("tone") ?? "premium") as EmmaInput["tone"];
+  const duration_minutes = parseInt(String(formData.get("duration_minutes") ?? "10"), 10);
+  const context = String(formData.get("context") ?? "").trim();
+
+  if (topic.length < 5) {
+    return { ok: false, error: "Le sujet est trop court (≥ 5 caractères)." };
+  }
+  if (context.length < 30) {
+    return { ok: false, error: "Le contexte est trop court (≥ 30 caractères)." };
+  }
+  if (isNaN(duration_minutes) || duration_minutes < 2 || duration_minutes > 60) {
+    return { ok: false, error: "Durée invalide (entre 2 et 60 minutes)." };
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `emma.deck: ${topic.slice(0, 60)}`,
+      plan: { agents: ["emma"], steps: ["plan", "slides", "speaker_notes"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+
+  const runId = run?.id ?? null;
+
+  try {
+    const inputObj: EmmaInput = {
+      topic,
+      audience,
+      objective,
+      tone,
+      duration_minutes,
+      context,
+      agency_name: agency.name,
+      agent_name: profile?.full_name ?? "votre négociateur",
+    };
+    const result = await runEmma(inputObj);
+    const markdown = emmaToMarkdown(result, inputObj);
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "emma",
+        input: { topic, audience, objective, tone, duration_minutes, context_preview: context.slice(0, 200) },
+        output: {
+          framework: result.framework,
+          slide_count: result.slide_count,
+          total_duration_minutes: result.total_duration_minutes,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    // Persiste comme document
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "presentation" as const,
+        title: `Pitch — ${topic.slice(0, 80)}`,
+        format: "md" as const,
+        metadata: {
+          emma_run_id: runId,
+          framework: result.framework,
+          audience,
+          objective,
+          tone,
+          duration_minutes: result.total_duration_minutes,
+          slide_count: result.slide_count,
+          markdown,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (runId) {
+      await supabase
+        .from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, markdown, document_id: (doc?.id as string) ?? null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Emma inconnue.";
+    if (runId) {
+      await supabase
+        .from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "emma",
+        input: { topic, audience, objective, tone, duration_minutes, context_preview: context.slice(0, 200) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}

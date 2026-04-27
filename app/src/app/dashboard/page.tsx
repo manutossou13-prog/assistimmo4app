@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logout } from "../login/actions";
 import { TomForm } from "./tom-form";
 import { SarahForm } from "./sarah-form";
+import { EmmaForm } from "./emma-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -109,8 +110,11 @@ export default async function DashboardPage() {
         {/* SARAH — copywriter terrain */}
         <SarahForm />
 
+        {/* EMMA — présentations & pitch */}
+        <EmmaForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.5.0 · TOM (DPE/ADEME + Street View) · SARAH (copywriter multi-canal)
+          v0.6.0 · TOM (DPE/ADEME + Street View) · SARAH (copywriter) · EMMA (decks Canva/Gamma)
         </p>
       </div>
     </main>
