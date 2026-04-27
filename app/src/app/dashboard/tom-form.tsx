@@ -151,19 +151,32 @@ function ResultCard({ state }: { state: Extract<TomActionResult, { ok: true }> }
         {property_id && <span style={{ ...pill, background: "rgba(93,187,106,.15)" }}>Sauvegardé en base</span>}
       </div>
 
-      <SectionTitle>Extraction</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 18 }}>
+      <SectionTitle>Extraction · {meta.source === "url" ? "🌐 URL fetchée" : "📝 Texte collé"}</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10, marginBottom: 14 }}>
         <Field label="Ville" value={extraction.city} />
         <Field label="CP" value={extraction.zipcode} />
-        <Field label="Surface" value={extraction.surface_habitable ? `${extraction.surface_habitable} m²` : null} />
+        <Field label="Quartier" value={extraction.neighborhood} />
+        <Field label="Rue" value={extraction.street_hint} />
+        <Field label="N°" value={extraction.street_number_hint} />
+        <Field label="Type" value={extraction.type} />
+        <Field label="Surface hab." value={extraction.surface_habitable ? `${extraction.surface_habitable} m²` : null} />
+        <Field label="Terrain" value={extraction.surface_terrain ? `${extraction.surface_terrain} m²` : null} />
         <Field label="Pièces" value={extraction.rooms} />
         <Field label="DPE" value={extraction.dpe_letter} />
         <Field label="GES" value={extraction.ges_letter} />
         <Field label="Année DPE" value={extraction.dpe_year} />
         <Field label="Prix" value={extraction.price ? `${extraction.price.toLocaleString("fr-FR")} €` : null} />
-        <Field label="Type" value={extraction.type} />
         <Field label="Agence" value={extraction.agency_name} />
       </div>
+      {extraction.features && extraction.features.length > 0 && (
+        <div style={{ marginBottom: 18, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {extraction.features.map((f, i) => (
+            <span key={i} style={{ ...pill, fontSize: 11 }}>
+              {f}
+            </span>
+          ))}
+        </div>
+      )}
 
       <SectionTitle>Adresses candidates</SectionTitle>
       {candidates.length === 0 ? (

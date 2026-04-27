@@ -165,24 +165,46 @@ function ResultPanel({ state }: { state: Extract<EmmaActionResult, { ok: true }>
         <span style={pill}>{result.slide_count} slide{result.slide_count > 1 ? "s" : ""}</span>
         <span style={pill}>{result.total_duration_minutes} min</span>
         <span style={pill}>{(result.meta.duration_ms / 1000).toFixed(1)} s</span>
-        {document_id && <span style={{ ...pill, background: "rgba(93,187,106,.15)" }}>Sauvegardé en base</span>}
-        <button
-          type="button"
-          onClick={copyMarkdown}
-          style={{
-            marginLeft: "auto",
-            padding: "8px 14px",
-            borderRadius: 999,
-            background: copied ? "rgba(93,187,106,.15)" : "rgba(255,255,255,.7)",
-            border: "1px solid var(--color-line)",
-            color: copied ? "#2a6e36" : "var(--color-ink-2)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          {copied ? "✓ Markdown copié" : "Copier markdown (Canva/Gamma)"}
-        </button>
+        {document_id && <span style={{ ...pill, background: "rgba(93,187,106,.15)" }}>Sauvegardé</span>}
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {document_id && (
+            <a
+              href={`/present/${document_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: "8px 14px",
+                borderRadius: 999,
+                background: "var(--color-ink)",
+                color: "var(--color-cream)",
+                border: "1px solid var(--color-ink)",
+                fontSize: 12,
+                fontWeight: 500,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ▶ Présenter (plein écran)
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={copyMarkdown}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 999,
+              background: copied ? "rgba(93,187,106,.15)" : "rgba(255,255,255,.7)",
+              border: "1px solid var(--color-line)",
+              color: copied ? "#2a6e36" : "var(--color-ink-2)",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            {copied ? "✓ Markdown copié" : "Copier markdown"}
+          </button>
+        </div>
       </div>
 
       {/* Navigation slides */}

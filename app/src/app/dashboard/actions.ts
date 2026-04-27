@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runTom, type TomResult } from "@/lib/agents/tom";
 import { runSarah, type SarahInput, type SarahResult } from "@/lib/agents/sarah";
 import { runEmma, emmaToMarkdown, type EmmaInput, type EmmaResult } from "@/lib/agents/emma";
+import { runStella, type StellaInput, type StellaResult } from "@/lib/agents/stella";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -419,3 +420,124 @@ export async function generatePresentationAction(
     return { ok: false, error: message };
   }
 }
+
+// ============================================================
+// STELLA — réseaux sociaux
+// ============================================================
+
+export type StellaActionResult =
+  | { ok: true; result: StellaResult; document_ids: string[] }
+  | { ok: false; error: string };
+
+export async function generateSocialAction(
+  _prev: StellaActionResult | null,
+  formData: FormData
+): Promise<StellaActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const channel = String(formData.get("channel") ?? "linkedin") as StellaInput["channel"];
+  const format = String(formData.get("format") ?? "post") as StellaInput["format"];
+  const tone = String(formData.get("tone") ?? "expert") as StellaInput["tone"];
+  const objective = String(formData.get("objective") ?? "valoriser_bien") as StellaInput["objective"];
+  const topic = String(formData.get("topic") ?? "").trim();
+  const context = String(formData.get("context") ?? "").trim();
+
+  if (topic.length < 5) return { ok: false, error: "Sujet trop court (≥ 5 caractères)." };
+  if (context.length < 30) return { ok: false, error: "Contexte trop court (≥ 30 caractères)." };
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `stella.social: ${channel}/${format}`,
+      plan: { agents: ["stella"], steps: ["copy", "hashtags", "visual_prompt"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runStella({
+      channel, format, tone, objective, topic, context,
+      agency_name: agency.name,
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "stella",
+        input: { channel, format, tone, objective, topic, context_preview: context.slice(0, 200) },
+        output: { framework: result.framework, post_count: result.posts.length },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    const docInserts = result.posts.map((p, i) => ({
+      agency_id: agency.id,
+      owner_user_id: user.id,
+      kind: "autre" as const,
+      title: `Post ${STELLA_CHANNEL_LABEL[channel]} — ${topic.slice(0, 60)} (variante ${i + 1})`,
+      format: "md" as const,
+      metadata: {
+        stella_run_id: runId,
+        framework: result.framework,
+        channel, format, tone, objective,
+        hook: p.hook,
+        body: p.body,
+        cta: p.cta,
+        hashtags: p.hashtags,
+        visual_prompt: p.visual_prompt,
+        carrousel_slides: p.carrousel_slides ?? null,
+        variant_index: i,
+        word_count: p.word_count,
+      },
+    }));
+
+    const { data: docs } = await supabase.from("documents").insert(docInserts).select("id");
+    const documentIds = (docs ?? []).map((d) => d.id as string);
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, document_ids: documentIds };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Stella inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "stella",
+        input: { channel, format, tone, objective, topic, context_preview: context.slice(0, 200) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+const STELLA_CHANNEL_LABEL: Record<StellaInput["channel"], string> = {
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  youtube_short: "YT Shorts",
+};

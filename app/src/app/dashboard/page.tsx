@@ -5,6 +5,7 @@ import { logout } from "../login/actions";
 import { TomForm } from "./tom-form";
 import { SarahForm } from "./sarah-form";
 import { EmmaForm } from "./emma-form";
+import { StellaForm } from "./stella-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -113,8 +114,11 @@ export default async function DashboardPage() {
         {/* EMMA — présentations & pitch */}
         <EmmaForm />
 
+        {/* STELLA — réseaux sociaux */}
+        <StellaForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.6.0 · TOM (DPE/ADEME + Street View) · SARAH (copywriter) · EMMA (decks Canva/Gamma)
+          v0.7.0 · TOM v2 (URL fetch + scoring rue/numéro) · SARAH · EMMA + plein écran · STELLA
         </p>
       </div>
     </main>
