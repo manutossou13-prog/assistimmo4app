@@ -1,14 +1,25 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { generateMeetingReportAction, type LeaActionResult } from "./actions";
+import { AudioRecorder } from "./audio-recorder";
 
 export function LeaForm() {
   const [state, formAction] = useActionState<LeaActionResult | null, FormData>(
     generateMeetingReportAction,
     null
   );
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  function appendTranscript(text: string) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const sep = ta.value.trim() ? "\n\n" : "";
+    ta.value = `${ta.value}${sep}${text}`;
+    ta.scrollTop = ta.scrollHeight;
+    ta.focus();
+  }
 
   return (
     <div
@@ -76,18 +87,17 @@ export function LeaForm() {
           />
         </div>
 
-        <Textarea
-          label="Notes brutes / transcript"
+        <AudioRecorder onTranscript={appendTranscript} />
+
+        <TextareaRef
+          ref={textareaRef}
+          label="Notes brutes / transcript (édite après transcription si besoin)"
           name="raw"
           required
           rows={8}
-          placeholder="Colle ici tes notes prises pendant le rdv, ou la transcription de l'audio. Pas besoin d'être propre, écris comme tu parles. Ex:
+          placeholder="Tape tes notes ici, ou enregistre ton audio juste au-dessus — Whisper le transcrit et l'ajoute automatiquement.
 
-Visite à 14h. Couple Martin (32 et 34 ans). Ils ont déjà visité 4 maisons.
-Ont aimé le salon et le jardin sud, en revanche cuisine datée de 1985, ils
-parlent de 15-20k€ de travaux. Question budget : pré-accord à 660k€.
-Disent qu'ils peuvent faire offre dans 10 jours mais pas au prix.
-Vigilance : monsieur a parlé d'un autre bien à Bobigny qu'ils visitent jeudi."
+Pas besoin d'être propre, écris comme tu parles."
           hint="Plus c'est complet, plus le CR est riche."
         />
 
@@ -326,11 +336,16 @@ function Input({ label, name, required, placeholder }: { label: string; name: st
   );
 }
 
-function Textarea({ label, name, rows = 3, placeholder, hint, required }: { label: string; name: string; rows?: number; placeholder?: string; hint?: string; required?: boolean }) {
+type TextareaProps = { label: string; name: string; rows?: number; placeholder?: string; hint?: string; required?: boolean };
+
+const TextareaRef = function TextareaRefInner(
+  { label, name, rows = 3, placeholder, hint, required, ref }: TextareaProps & { ref?: React.RefObject<HTMLTextAreaElement | null> }
+) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <span style={{ fontSize: 11.5, color: "var(--color-muted)", fontWeight: 500 }}>{label}</span>
       <textarea
+        ref={ref}
         name={name}
         rows={rows}
         required={required}
@@ -351,7 +366,7 @@ function Textarea({ label, name, rows = 3, placeholder, hint, required }: { labe
       {hint && <span style={{ fontSize: 10.5, color: "var(--color-muted)", marginTop: 1 }}>{hint}</span>}
     </label>
   );
-}
+};
 
 function Select({ label, name, defaultValue, children }: { label: string; name: string; defaultValue: string; children: React.ReactNode }) {
   return (

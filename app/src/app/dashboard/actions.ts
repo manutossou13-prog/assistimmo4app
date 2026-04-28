@@ -7,6 +7,8 @@ import { runSarah, type SarahInput, type SarahResult } from "@/lib/agents/sarah"
 import { runEmma, emmaToMarkdown, type EmmaInput, type EmmaResult } from "@/lib/agents/emma";
 import { runStella, type StellaInput, type StellaResult } from "@/lib/agents/stella";
 import { runLea, type LeaInput, type LeaResult } from "@/lib/agents/lea";
+import { runFranck, type FranckInput, type FranckResult } from "@/lib/agents/franck";
+import { runGabriel, type GabrielInput, type GabrielResult } from "@/lib/agents/gabriel";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -784,4 +786,248 @@ function buildSummaryMarkdown(r: LeaResult): string {
   if (r.next_meeting) lines.push(`## Prochain rdv\n\n${r.next_meeting}\n`);
   if (r.client_email_draft) lines.push(`## Email retour client (draft)\n\n${r.client_email_draft}`);
   return lines.join("\n");
+}
+
+// ============================================================
+// FRANCK — vidéaste
+// ============================================================
+
+export type FranckActionResult =
+  | { ok: true; result: FranckResult; document_id: string | null }
+  | { ok: false; error: string };
+
+export async function generateVideoScriptAction(
+  _prev: FranckActionResult | null,
+  formData: FormData
+): Promise<FranckActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const video_kind = String(formData.get("video_kind") ?? "bien") as FranckInput["video_kind"];
+  const channel = String(formData.get("channel") ?? "reel") as FranckInput["channel"];
+  const duration_seconds = parseInt(String(formData.get("duration_seconds") ?? "30"), 10);
+  const style = String(formData.get("style") ?? "cinematique") as FranckInput["style"];
+  const topic = String(formData.get("topic") ?? "").trim();
+  const context = String(formData.get("context") ?? "").trim();
+
+  if (topic.length < 5) return { ok: false, error: "Sujet trop court (≥ 5 caractères)." };
+  if (context.length < 30) return { ok: false, error: "Contexte trop court (≥ 30 caractères)." };
+  if (isNaN(duration_seconds) || duration_seconds < 10 || duration_seconds > 600) {
+    return { ok: false, error: "Durée invalide (10-600 secondes)." };
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `franck.video: ${video_kind}/${channel}/${duration_seconds}s`,
+      plan: { agents: ["franck"], steps: ["hook", "shots", "voiceover", "captions"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runFranck({
+      video_kind, channel, duration_seconds, style, topic, context,
+      agency_name: agency.name,
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "franck",
+        input: { video_kind, channel, duration_seconds, style, topic },
+        output: { hook: result.hook_3s, shots_count: result.shots.length },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "autre" as const,
+        title: `Script vidéo ${channel} — ${topic.slice(0, 60)}`,
+        format: "md" as const,
+        metadata: {
+          franck_run_id: runId,
+          video_kind, channel, duration_seconds, style,
+          hook_3s: result.hook_3s,
+          shots: result.shots,
+          voiceover_full: result.voiceover_full,
+          caption_post: result.caption_post,
+          hashtags: result.hashtags,
+          music_brief: result.music_brief,
+          shot_list_to_film: result.shot_list_to_film,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, document_id: (doc?.id as string) ?? null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Franck inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "franck",
+        input: { video_kind, channel, duration_seconds, style, topic },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+// ============================================================
+// GABRIEL — pilote financier
+// ============================================================
+
+export type GabrielActionResult =
+  | { ok: true; result: GabrielResult; document_id: string | null }
+  | { ok: false; error: string };
+
+export async function analyzeFinanceAction(
+  _prev: GabrielActionResult | null,
+  formData: FormData
+): Promise<GabrielActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const mode = String(formData.get("mode") ?? "analyse") as GabrielInput["mode"];
+  const data_raw = String(formData.get("data_raw") ?? "").trim();
+  const period_label = String(formData.get("period_label") ?? "").trim() || null;
+  const monthly_revenue = parseFloatOrNull(String(formData.get("monthly_revenue") ?? ""));
+  const context = String(formData.get("context") ?? "").trim() || null;
+
+  if (data_raw.length < 30) {
+    return { ok: false, error: "Données trop courtes (≥ 30 caractères). Colle ton tableau Excel ou décris la charge." };
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `gabriel.${mode}: ${period_label ?? ""}`,
+      plan: { agents: ["gabriel"], steps: ["categorize", "score", "recommend"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runGabriel({
+      mode, data_raw, period_label, monthly_revenue, context,
+      agency_name: agency.name,
+      agent_name: profile?.full_name ?? "le dirigeant",
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "gabriel",
+        input: { mode, period_label, data_preview: data_raw.slice(0, 400) },
+        output: {
+          total_yearly: result.total_charges_yearly,
+          recos: result.recommendations.length,
+          alerts: result.alerts.length,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    const docTitle =
+      mode === "resiliation"
+        ? `Lettre de résiliation — ${period_label ?? "à compléter"}`
+        : `Analyse financière — ${period_label ?? "période non précisée"}`;
+
+    const docKind = mode === "resiliation" ? "resiliation" : "autre";
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: docKind as "resiliation" | "autre",
+        title: docTitle,
+        format: "md" as const,
+        metadata: {
+          gabriel_run_id: runId,
+          mode, period_label,
+          synthese: result.synthese,
+          total_charges_monthly: result.total_charges_monthly,
+          total_charges_yearly: result.total_charges_yearly,
+          recommendations: result.recommendations,
+          alerts: result.alerts,
+          resiliation_letter: result.resiliation_letter,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, document_id: (doc?.id as string) ?? null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Gabriel inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "gabriel",
+        input: { mode, data_preview: data_raw.slice(0, 400) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
 }

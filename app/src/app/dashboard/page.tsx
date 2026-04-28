@@ -7,6 +7,8 @@ import { SarahForm } from "./sarah-form";
 import { EmmaForm } from "./emma-form";
 import { StellaForm } from "./stella-form";
 import { LeaForm } from "./lea-form";
+import { FranckForm } from "./franck-form";
+import { GabrielForm } from "./gabriel-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -121,8 +123,14 @@ export default async function DashboardPage() {
         {/* LÉA — comptes rendus & relation client */}
         <LeaForm />
 
+        {/* FRANCK — vidéaste IA */}
+        <FranckForm />
+
+        {/* GABRIEL — pilote financier */}
+        <GabrielForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.8.0 · TOM v4 (cadastre IGN + DPE numérique) · SARAH · EMMA + présentation · STELLA · LÉA
+          v0.9.0 · 7 agents · TOM (cadastre IGN) · SARAH · EMMA · STELLA · LÉA (audio Whisper) · FRANCK · GABRIEL
         </p>
       </div>
     </main>
