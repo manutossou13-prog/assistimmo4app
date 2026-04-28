@@ -10,6 +10,8 @@ import { runLea, type LeaInput, type LeaResult } from "@/lib/agents/lea";
 import { runFranck, type FranckInput, type FranckResult } from "@/lib/agents/franck";
 import { runGabriel, type GabrielInput, type GabrielResult } from "@/lib/agents/gabriel";
 import { runInes, type InesInput, type InesResult } from "@/lib/agents/ines";
+import { runHugo, type HugoInput, type HugoResult } from "@/lib/agents/hugo";
+import { fetchAirtableRecords, recordsToCsv } from "@/lib/integrations/airtable";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -1201,6 +1203,180 @@ export async function runInesAction(
         run_id: runId,
         agent_slug: "ines",
         input: { mode, job_title, context_preview: context.slice(0, 200) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+// ============================================================
+// HUGO — manager & analyste KPI
+// ============================================================
+
+export type HugoActionResult =
+  | {
+      ok: true;
+      result: HugoResult;
+      document_id: string | null;
+      airtable_meta?: { records_count: number; table: string } | null;
+    }
+  | { ok: false; error: string };
+
+export async function runHugoAction(
+  _prev: HugoActionResult | null,
+  formData: FormData
+): Promise<HugoActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const source = String(formData.get("source") ?? "manual") as "manual" | "airtable";
+  const period = String(formData.get("period") ?? "month") as HugoInput["period"];
+  const period_label = String(formData.get("period_label") ?? "").trim() || "Période courante";
+  const targets = String(formData.get("targets") ?? "").trim() || null;
+  const context = String(formData.get("context") ?? "").trim() || null;
+
+  let data_raw = "";
+  let airtable_meta: { records_count: number; table: string } | null = null;
+
+  if (source === "airtable") {
+    const pat = String(formData.get("airtable_pat") ?? "").trim();
+    const baseId = String(formData.get("airtable_base_id") ?? "").trim();
+    const tableNameOrId = String(formData.get("airtable_table") ?? "").trim();
+    const view = String(formData.get("airtable_view") ?? "").trim() || undefined;
+    const filterByFormula = String(formData.get("airtable_filter") ?? "").trim() || undefined;
+
+    if (!pat || !pat.startsWith("pat")) {
+      return { ok: false, error: "Personal Access Token Airtable manquant ou invalide (doit commencer par 'pat')." };
+    }
+    if (!baseId || !baseId.startsWith("app")) {
+      return { ok: false, error: "Base ID Airtable manquant ou invalide (doit commencer par 'app')." };
+    }
+    if (!tableNameOrId) {
+      return { ok: false, error: "Nom de la table Airtable requis." };
+    }
+
+    try {
+      const { records } = await fetchAirtableRecords({ pat, baseId, tableNameOrId, view, filterByFormula, maxRecords: 500 });
+      if (records.length === 0) {
+        return { ok: false, error: "Aucune ligne récupérée depuis Airtable. Vérifie les filtres / la vue / les permissions du PAT." };
+      }
+      data_raw = recordsToCsv(records);
+      airtable_meta = { records_count: records.length, table: tableNameOrId };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur Airtable";
+      return { ok: false, error: msg };
+    }
+  } else {
+    data_raw = String(formData.get("data_raw") ?? "").trim();
+    if (data_raw.length < 30) {
+      return { ok: false, error: "Données trop courtes (≥ 30 caractères). Colle un tableau ou un dump CRM." };
+    }
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `hugo.${source}: ${period} ${period_label}`,
+      plan: { agents: ["hugo"], steps: ["ingest", "compute_kpi", "alerts", "ranking", "actions"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runHugo({
+      period, period_label, targets, context,
+      data_raw,
+      agency_name: agency.name,
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "hugo",
+        input: { source, period, period_label, airtable_meta, data_size: data_raw.length },
+        output: {
+          kpis_count: result.kpis.length,
+          alerts_count: result.alerts.length,
+          ranking_count: result.ranking.length,
+          actions_count: result.actions.length,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    // Persist KPI snapshot
+    await supabase.from("kpi_records").insert({
+      agency_id: agency.id,
+      period_start: null,
+      period_end: null,
+      metrics: {
+        period_label,
+        synthese: result.synthese,
+        kpis: result.kpis,
+        alerts: result.alerts,
+        ranking: result.ranking,
+        actions: result.actions,
+        airtable_meta,
+      },
+    } as unknown as Record<string, unknown>);
+
+    // Persist as document (CR pilotage)
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "autre" as const,
+        title: `Pilotage Hugo — ${period_label}`,
+        format: "md" as const,
+        metadata: {
+          hugo_run_id: runId,
+          period, period_label,
+          synthese: result.synthese,
+          kpis: result.kpis,
+          alerts: result.alerts,
+          ranking: result.ranking,
+          actions: result.actions,
+          meeting_brief_md: result.meeting_brief_md,
+          airtable_meta,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, document_id: (doc?.id as string) ?? null, airtable_meta };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Hugo inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "hugo",
+        input: { source, period, period_label },
         error: message,
       });
     }

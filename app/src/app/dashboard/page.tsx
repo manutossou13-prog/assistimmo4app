@@ -10,6 +10,7 @@ import { LeaForm } from "./lea-form";
 import { FranckForm } from "./franck-form";
 import { GabrielForm } from "./gabriel-form";
 import { InesForm } from "./ines-form";
+import { HugoForm } from "./hugo-form";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -133,8 +134,11 @@ export default async function DashboardPage() {
         {/* INÈS — recrutement immobilier */}
         <InesForm />
 
+        {/* HUGO — manager & analyste KPI (avec connexion Airtable) */}
+        <HugoForm />
+
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v0.10.0 · 8 agents · TOM · SARAH · EMMA · STELLA · LÉA · FRANCK · GABRIEL · INÈS
+          v0.11.0 · 9 agents · TOM · SARAH · EMMA · STELLA · LÉA · FRANCK · GABRIEL · INÈS · HUGO (Airtable)
         </p>
       </div>
     </main>
