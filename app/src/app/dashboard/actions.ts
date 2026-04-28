@@ -13,6 +13,7 @@ import { runInes, type InesInput, type InesResult } from "@/lib/agents/ines";
 import { runHugo, type HugoInput, type HugoResult } from "@/lib/agents/hugo";
 import { fetchAirtableRecords, recordsToCsv } from "@/lib/integrations/airtable";
 import { runNora, type NoraInput, type NoraResult, type NoraSellerInput } from "@/lib/agents/nora";
+import { runOscar, type OscarResult } from "@/lib/agents/oscar";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -1622,5 +1623,84 @@ export async function generateMandateAction(
       });
     }
     return { ok: false, error: message };
+  }
+}
+
+// ============================================================
+// OSCAR — orchestrateur central (routing intent → agent)
+// ============================================================
+
+export type OscarActionResult =
+  | { ok: true; result: OscarResult; run_id: string | null }
+  | { ok: false; error: string };
+
+export async function runOscarAction(
+  _prev: OscarActionResult | null,
+  formData: FormData
+): Promise<OscarActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const message = String(formData.get("message") ?? "").trim();
+  if (message.length < 5) return { ok: false, error: "Demande trop courte." };
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `oscar.route: ${message.slice(0, 80)}`,
+      plan: { agents: ["oscar"], steps: ["classify", "extract"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runOscar(message);
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "oscar",
+        input: { message: message.slice(0, 500) },
+        output: {
+          target_agent: result.plan.agent,
+          missing_fields_count: result.plan.missing_fields.length,
+          alternatives: result.plan.alternative_agents,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    return { ok: true, result, run_id: runId };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "Erreur OSCAR inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "oscar",
+        input: { message: message.slice(0, 500) },
+        error: errMsg,
+      });
+    }
+    return { ok: false, error: errMsg };
   }
 }

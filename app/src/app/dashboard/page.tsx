@@ -12,6 +12,7 @@ import { GabrielForm } from "./gabriel-form";
 import { InesForm } from "./ines-form";
 import { HugoForm } from "./hugo-form";
 import { NoraForm } from "./nora-form";
+import { OscarChat } from "./oscar-chat";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -111,38 +112,41 @@ export default async function DashboardPage() {
           <Row label="Rôle" value={role} ok />
         </div>
 
+        {/* OSCAR — orchestrateur */}
+        <OscarChat />
+
         {/* TOM — premier agent live */}
-        <TomForm />
+        <div id="tom"><TomForm /></div>
 
         {/* NORA — administratif & mandats */}
-        <NoraForm />
+        <div id="nora"><NoraForm /></div>
 
         {/* SARAH — copywriter terrain */}
-        <SarahForm />
+        <div id="sarah"><SarahForm /></div>
 
         {/* EMMA — présentations & pitch */}
-        <EmmaForm />
+        <div id="emma"><EmmaForm /></div>
 
         {/* STELLA — réseaux sociaux */}
-        <StellaForm />
+        <div id="stella"><StellaForm /></div>
 
         {/* LÉA — comptes rendus & relation client */}
-        <LeaForm />
+        <div id="lea"><LeaForm /></div>
 
         {/* FRANCK — vidéaste IA */}
-        <FranckForm />
+        <div id="franck"><FranckForm /></div>
 
         {/* GABRIEL — pilote financier */}
-        <GabrielForm />
+        <div id="gabriel"><GabrielForm /></div>
 
         {/* INÈS — recrutement immobilier */}
-        <InesForm />
+        <div id="ines"><InesForm /></div>
 
         {/* HUGO — manager & analyste KPI (avec connexion Airtable) */}
-        <HugoForm />
+        <div id="hugo"><HugoForm /></div>
 
         <p style={{ marginTop: 60, fontSize: 11, color: "var(--color-muted)", letterSpacing: ".05em", textAlign: "center" }}>
-          v1.0.0 · 10 agents · TOM · NORA · SARAH · EMMA · STELLA · LÉA · FRANCK · GABRIEL · INÈS · HUGO
+          v1.0.0 · 11 agents · OSCAR (orchestrateur) · TOM · NORA · SARAH · EMMA · STELLA · LÉA · FRANCK · GABRIEL · INÈS · HUGO
         </p>
       </div>
     </main>
