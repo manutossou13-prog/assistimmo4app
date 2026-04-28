@@ -12,6 +12,7 @@ import { runGabriel, type GabrielInput, type GabrielResult } from "@/lib/agents/
 import { runInes, type InesInput, type InesResult } from "@/lib/agents/ines";
 import { runHugo, type HugoInput, type HugoResult } from "@/lib/agents/hugo";
 import { fetchAirtableRecords, recordsToCsv } from "@/lib/integrations/airtable";
+import { runNora, type NoraInput, type NoraResult, type NoraSellerInput } from "@/lib/agents/nora";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -1377,6 +1378,246 @@ export async function runHugoAction(
         run_id: runId,
         agent_slug: "hugo",
         input: { source, period, period_label },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+// ============================================================
+// NORA — administratif & mandats
+// ============================================================
+
+export type NoraActionResult =
+  | { ok: true; result: NoraResult; mandate_id: string; document_id: string }
+  | { ok: false; error: string };
+
+export async function generateMandateAction(
+  _prev: NoraActionResult | null,
+  formData: FormData
+): Promise<NoraActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name, address, carte_t_number)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as {
+    id: string;
+    name: string;
+    address: string | null;
+    carte_t_number: string | null;
+  } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  // Type & dates
+  const type = String(formData.get("type") ?? "exclusif") as NoraInput["type"];
+  const start_date = String(formData.get("start_date") ?? "").trim();
+  const duration_months = parseInt(String(formData.get("duration_months") ?? "3"), 10);
+
+  // Bien
+  const property_address = String(formData.get("property_address") ?? "").trim();
+  const property_city = String(formData.get("property_city") ?? "").trim() || null;
+  const property_zipcode = String(formData.get("property_zipcode") ?? "").trim() || null;
+  const property_designation = String(formData.get("property_designation") ?? "").trim();
+  const property_surface_habitable = parseFloatOrNull(String(formData.get("property_surface_habitable") ?? ""));
+  const property_surface_terrain = parseFloatOrNull(String(formData.get("property_surface_terrain") ?? ""));
+
+  // Vendeurs (1 ou 2)
+  const sellers: NoraSellerInput[] = [];
+  for (let i = 0; i < 2; i++) {
+    const civility = String(formData.get(`seller_${i}_civility`) ?? "").trim();
+    const first_name = String(formData.get(`seller_${i}_first_name`) ?? "").trim();
+    const last_name = String(formData.get(`seller_${i}_last_name`) ?? "").trim();
+    if (!first_name && !last_name) continue;
+    sellers.push({
+      civility: civility || "M.",
+      first_name,
+      last_name,
+      birth_date: String(formData.get(`seller_${i}_birth_date`) ?? "").trim() || null,
+      birth_place: String(formData.get(`seller_${i}_birth_place`) ?? "").trim() || null,
+      address: String(formData.get(`seller_${i}_address`) ?? "").trim(),
+      email: String(formData.get(`seller_${i}_email`) ?? "").trim() || null,
+      phone: String(formData.get(`seller_${i}_phone`) ?? "").trim() || null,
+      id_doc_type: String(formData.get(`seller_${i}_id_doc_type`) ?? "").trim() || null,
+      id_doc_ref: String(formData.get(`seller_${i}_id_doc_ref`) ?? "").trim() || null,
+    });
+  }
+
+  // Conditions financières
+  const price = parseFloatOrNull(String(formData.get("price") ?? "")) ?? 0;
+  const commission_amount = parseFloatOrNull(String(formData.get("commission_amount") ?? ""));
+  const commission_pct = parseFloatOrNull(String(formData.get("commission_pct") ?? ""));
+  const commission_payer = String(formData.get("commission_payer") ?? "seller") as NoraInput["commission_payer"];
+
+  const special_conditions = String(formData.get("special_conditions") ?? "").trim() || null;
+
+  // Validations
+  if (sellers.length === 0) return { ok: false, error: "Au moins un vendeur requis (nom + prénom)." };
+  if (!property_address || !property_designation) return { ok: false, error: "Adresse et désignation du bien requises." };
+  if (!price || price < 1000) return { ok: false, error: "Prix de mise en vente invalide." };
+  if (!start_date) return { ok: false, error: "Date de début du mandat requise." };
+  if (isNaN(duration_months) || duration_months < 1 || duration_months > 24) return { ok: false, error: "Durée invalide (1-24 mois)." };
+  if (!commission_amount && !commission_pct) return { ok: false, error: "Honoraires requis (montant € OU pourcentage %)." };
+
+  // Numéro de registre via fonction Postgres
+  const { data: regData, error: regErr } = await supabase.rpc("next_mandate_registry_number", {
+    p_agency_id: agency.id,
+  });
+  if (regErr || !regData) {
+    return { ok: false, error: `Impossible de générer le numéro de registre : ${regErr?.message ?? "erreur inconnue"}` };
+  }
+  const registry_number = String(regData);
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `nora.mandate: ${type} ${registry_number}`,
+      plan: { agents: ["nora"], steps: ["validate", "generate", "conformity_check", "persist"] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const inputObj: NoraInput = {
+      type,
+      sellers,
+      property_address,
+      property_city,
+      property_zipcode,
+      property_designation,
+      property_surface_habitable,
+      property_surface_terrain,
+      price,
+      commission_amount,
+      commission_pct,
+      commission_payer,
+      start_date,
+      duration_months,
+      registry_number,
+      special_conditions,
+      agency_name: agency.name,
+      agency_address: agency.address,
+      agency_carte_t: agency.carte_t_number,
+      agent_full_name: profile?.full_name ?? "le négociateur",
+    };
+
+    const result = await runNora(inputObj);
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "nora",
+        input: { type, registry_number, price, duration_months, sellers_count: sellers.length },
+        output: {
+          conformity_ok: result.conformity.filter((c) => c.ok).length,
+          conformity_total: result.conformity.length,
+          warnings_count: result.warnings.length,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    // Persist document FIRST
+    const sellerSummary = sellers.map((s) => `${s.civility} ${s.first_name} ${s.last_name}`).join(" & ");
+    const { data: doc, error: docErr } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "mandate" as const,
+        title: `Mandat ${type} n° ${registry_number} — ${property_address}`,
+        format: "md" as const,
+        metadata: {
+          nora_run_id: runId,
+          type,
+          registry_number,
+          mandate_md: result.mandate_md,
+          conformity: result.conformity,
+          warnings: result.warnings,
+          end_date: result.end_date,
+          commission_amount_final: result.commission_amount_final,
+          commission_payer,
+          legal_disclaimer: result.legal_disclaimer,
+          // Pour la page d'impression
+          property_address,
+          property_city,
+          property_zipcode,
+          property_designation,
+          sellers_summary: sellerSummary,
+          price,
+          start_date,
+          duration_months,
+          agency: {
+            name: agency.name,
+            address: agency.address,
+            carte_t: agency.carte_t_number,
+          },
+          agent_name: profile?.full_name ?? null,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (docErr || !doc) {
+      throw new Error(`Persist document : ${docErr?.message ?? "inconnu"}`);
+    }
+
+    // Persist mandate
+    const { data: mandate, error: mandateErr } = await supabase
+      .from("mandates")
+      .insert({
+        agency_id: agency.id,
+        type: type === "avenant" ? "simple" : type, // 'avenant' n'est pas un type DB
+        start_date,
+        end_date: result.end_date,
+        price,
+        commission: result.commission_amount_final,
+        commission_payer,
+        status: "draft" as const,
+        document_id: doc.id,
+        registry_number,
+      })
+      .select("id")
+      .single();
+
+    if (mandateErr || !mandate) {
+      throw new Error(`Persist mandate : ${mandateErr?.message ?? "inconnu"}`);
+    }
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return { ok: true, result, mandate_id: mandate.id as string, document_id: doc.id as string };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Nora inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "nora",
+        input: { type, registry_number, sellers_count: sellers.length },
         error: message,
       });
     }
