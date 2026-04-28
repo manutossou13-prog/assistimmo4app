@@ -9,6 +9,7 @@ import { runStella, type StellaInput, type StellaResult } from "@/lib/agents/ste
 import { runLea, type LeaInput, type LeaResult } from "@/lib/agents/lea";
 import { runFranck, type FranckInput, type FranckResult } from "@/lib/agents/franck";
 import { runGabriel, type GabrielInput, type GabrielResult } from "@/lib/agents/gabriel";
+import { runInes, type InesInput, type InesResult } from "@/lib/agents/ines";
 
 export type TomActionResult =
   | { ok: true; result: TomResult; property_id?: string }
@@ -1025,6 +1026,181 @@ export async function analyzeFinanceAction(
         run_id: runId,
         agent_slug: "gabriel",
         input: { mode, data_preview: data_raw.slice(0, 400) },
+        error: message,
+      });
+    }
+    return { ok: false, error: message };
+  }
+}
+
+// ============================================================
+// INÈS — recrutement immobilier
+// ============================================================
+
+export type InesActionResult =
+  | { ok: true; result: InesResult; document_id: string | null; candidate_id: string | null }
+  | { ok: false; error: string };
+
+export async function runInesAction(
+  _prev: InesActionResult | null,
+  formData: FormData
+): Promise<InesActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("agency:agencies(id, name)")
+    .eq("user_id", user.id)
+    .limit(1);
+  const m = memberships?.[0];
+  const agency = m?.agency as unknown as { id: string; name: string } | null;
+  if (!agency) return { ok: false, error: "Aucune agence rattachée." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const mode = String(formData.get("mode") ?? "fiche_poste") as InesInput["mode"];
+  const job_title = String(formData.get("job_title") ?? "").trim();
+  const context = String(formData.get("context") ?? "").trim();
+  const cv_text = String(formData.get("cv_text") ?? "").trim() || null;
+  const candidate_url = String(formData.get("candidate_url") ?? "").trim() || null;
+
+  if (!job_title || job_title.length < 3) {
+    return { ok: false, error: "Intitulé du poste requis (≥ 3 caractères)." };
+  }
+  if (context.length < 30) {
+    return { ok: false, error: "Brief trop court (≥ 30 caractères). Décris le poste / candidat / contexte." };
+  }
+  if (mode === "score_cv" && (!cv_text || cv_text.length < 100)) {
+    return { ok: false, error: "Pour scorer un CV, colle au moins 100 caractères de texte de CV." };
+  }
+
+  const { data: run } = await supabase
+    .from("agent_runs")
+    .insert({
+      agency_id: agency.id,
+      user_id: user.id,
+      intent: `ines.${mode}: ${job_title.slice(0, 60)}`,
+      plan: { agents: ["ines"], steps: [mode] },
+      status: "running",
+    })
+    .select("id")
+    .single();
+  const runId = run?.id ?? null;
+
+  try {
+    const result = await runInes({
+      mode, job_title, context, cv_text, candidate_url,
+      agency_name: agency.name,
+      agent_name: profile?.full_name ?? "le recruteur",
+    });
+
+    if (runId) {
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "ines",
+        input: { mode, job_title, context_preview: context.slice(0, 200) },
+        output: {
+          mode,
+          legal_warnings_count: result.legal_warnings.length,
+          score_global: result.score_global,
+          questions_count: result.questions.length,
+        },
+        duration_ms: result.meta.duration_ms,
+      });
+    }
+
+    // Persist as document
+    const docTitleByMode: Record<InesInput["mode"], string> = {
+      fiche_poste: `Fiche de poste — ${job_title}`,
+      message_chasse: `Chasse LinkedIn — ${job_title}`,
+      score_cv: `Score CV — ${job_title}`,
+      kit_entretien: `Kit entretien — ${job_title}`,
+    };
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        agency_id: agency.id,
+        owner_user_id: user.id,
+        kind: "fiche" as const,
+        title: docTitleByMode[mode],
+        format: "md" as const,
+        metadata: {
+          ines_run_id: runId,
+          mode,
+          job_title,
+          job_post_md: result.job_post_md,
+          job_post_short: result.job_post_short,
+          outreach_subject: result.outreach_subject,
+          outreach_body: result.outreach_body,
+          outreach_followups: result.outreach_followups,
+          score_global: result.score_global,
+          score_breakdown: result.score_breakdown,
+          strengths: result.strengths,
+          to_explore: result.to_explore,
+          red_flags: result.red_flags,
+          questions: result.questions,
+          evaluation_grid: result.evaluation_grid,
+          legal_warnings: result.legal_warnings,
+        },
+      })
+      .select("id")
+      .single();
+
+    // Si mode = score_cv, persist aussi en candidates
+    let candidateId: string | null = null;
+    if (mode === "score_cv" && result.score_global !== null && cv_text) {
+      // Tentative d'extraction d'un nom depuis le CV (simple heuristique)
+      const firstLine = cv_text.split("\n").find((l) => l.trim().length > 5);
+      const candidateName = firstLine ? firstLine.trim().slice(0, 80) : null;
+
+      const { data: cand } = await supabase
+        .from("candidates")
+        .insert({
+          agency_id: agency.id,
+          full_name: candidateName,
+          job_title,
+          score: result.score_global,
+          score_breakdown: result.score_breakdown,
+          strengths: result.strengths,
+          to_explore: result.to_explore,
+          red_flags: result.red_flags,
+          status: "new",
+        })
+        .select("id")
+        .single();
+      candidateId = (cand?.id as string) ?? null;
+    }
+
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "done", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+    }
+
+    revalidatePath("/dashboard");
+    return {
+      ok: true,
+      result,
+      document_id: (doc?.id as string) ?? null,
+      candidate_id: candidateId,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Inès inconnue.";
+    if (runId) {
+      await supabase.from("agent_runs")
+        .update({ status: "failed", ended_at: new Date().toISOString() })
+        .eq("id", runId);
+      await supabase.from("agent_steps").insert({
+        run_id: runId,
+        agent_slug: "ines",
+        input: { mode, job_title, context_preview: context.slice(0, 200) },
         error: message,
       });
     }
