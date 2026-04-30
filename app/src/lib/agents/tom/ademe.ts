@@ -3,12 +3,14 @@
  * Source officielle : https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant
  * Public, gratuit, pas de clé requise. ~600 req/min.
  *
- * Approche dérivée de parcellai.re : filtrage par CODE POSTAL (exact match BAN)
- * pour des résultats fiables, scoring numérique sur conso/GES/surface/date.
+ * Approche héritée de parcellai.re :
+ *  - Filtrage strict par CODE POSTAL (code_postal_ban exact match)
+ *  - Résolution ville → CP via Géoplateforme IGN si pas de CP fourni
+ *  - Scoring numérique sur conso (kWh) / GES (kg CO₂) / surface / date
+ *  - Coordonnées GPS DANS le dataset (Lambert 93 → conversion WGS84 inline)
  *
- * Note : ce dataset utilise des noms de champs avec accents et parenthèses
- * (héritage du standard officiel ADEME). On les conserve tels quels et
- * on remappe en interne vers des noms TS-friendly.
+ * IMPORTANT : noms de champs en lowercase snake_case (vrais noms du dataset),
+ * valeurs `type_batiment` en lowercase ("maison", "appartement", "immeuble").
  */
 
 const ADEME_DATASET = "dpe03existant";
@@ -16,28 +18,28 @@ const ADEME_BASE = `https://data.ademe.fr/data-fair/api/v1/datasets/${ADEME_DATA
 const GEOPF_GEOCODE = "https://data.geopf.fr/geocodage/search";
 
 const SELECT_FIELDS = [
-  "N°DPE",
-  "Etiquette_DPE",
-  "Etiquette_GES",
-  "Conso_5_usages_par_m__finale", // kWh/m²/an
-  "Emission_GES_5_usages_par_m_", // kg CO₂/m²/an
-  "Surface_habitable_logement",
-  "Date_établissement_DPE",
-  "Adresse_(BAN)",
-  "Code_postal_(BAN)",
-  "Nom__commune_(BAN)",
-  "Type_bâtiment",
-  "Année_construction",
-  "Coordonnée_cartographique_X_(BAN)",
-  "Coordonnée_cartographique_Y_(BAN)",
+  "numero_dpe",
+  "etiquette_dpe",
+  "etiquette_ges",
+  "conso_5_usages_par_m2_ep",
+  "emission_ges_5_usages_par_m2",
+  "surface_habitable_logement",
+  "date_etablissement_dpe",
+  "adresse_ban",
+  "code_postal_ban",
+  "nom_commune_ban",
+  "type_batiment",
+  "annee_construction",
+  "coordonnee_cartographique_x_ban",
+  "coordonnee_cartographique_y_ban",
 ].join(",");
 
 export type AdemeListingMatch = {
   numero_dpe?: string;
   etiquette_dpe?: string;
   etiquette_ges?: string;
-  conso_5_usages_par_m2_finale?: number; // kWh/m²/an
-  emission_ges_5_usages_par_m2?: number; // kg CO₂/m²/an
+  conso_5_usages_par_m2_finale?: number; // mappé depuis conso_5_usages_par_m2_ep
+  emission_ges_5_usages_par_m2?: number;
   surface_habitable_logement?: number;
   date_etablissement_dpe?: string;
   adresse_ban?: string;
@@ -45,10 +47,10 @@ export type AdemeListingMatch = {
   nom_commune_ban?: string;
   type_batiment?: string;
   annee_construction?: number;
-  lat?: number; // coords directement dans le dataset
+  lat?: number;
   lng?: number;
-  numero_voie_ban?: string; // legacy / vide
-  nom_rue_ban?: string; // legacy / vide
+  numero_voie_ban?: string; // legacy/vide
+  nom_rue_ban?: string; // legacy/vide
   raw: Record<string, unknown>;
 };
 
@@ -61,9 +63,6 @@ export type AdemeQuery = {
   size?: number;
 };
 
-/**
- * Résout un nom de ville en code postal via la Géoplateforme IGN (gratuit, sans clé).
- */
 export async function resolveZipcodeFromCity(city: string): Promise<string | null> {
   try {
     const url = `${GEOPF_GEOCODE}?q=${encodeURIComponent(city)}&limit=1&type=municipality`;
@@ -92,19 +91,11 @@ export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMat
   }
 
   const filtres: string[] = [];
-  filtres.push(`Code_postal_(BAN):"${zipcode}"`);
-
-  if (query.dpe_letter) filtres.push(`Etiquette_DPE:"${query.dpe_letter}"`);
-  if (query.ges_letter) filtres.push(`Etiquette_GES:"${query.ges_letter}"`);
-
+  filtres.push(`code_postal_ban:"${zipcode}"`);
+  if (query.dpe_letter) filtres.push(`etiquette_dpe:"${query.dpe_letter.toUpperCase()}"`);
+  if (query.ges_letter) filtres.push(`etiquette_ges:"${query.ges_letter.toUpperCase()}"`);
   if (query.type_batiment) {
-    const mapping: Record<string, string> = {
-      maison: "Maison",
-      appartement: "Appartement",
-      immeuble: "Immeuble",
-    };
-    const tb = mapping[query.type_batiment];
-    if (tb) filtres.push(`Type_bâtiment:"${tb}"`);
+    filtres.push(`type_batiment:"${query.type_batiment}"`);
   }
 
   const params = new URLSearchParams();
@@ -131,21 +122,35 @@ export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMat
   const results = Array.isArray(data.results) ? data.results : [];
 
   return results.map((r) => {
-    const lat = (r["Coordonnée_cartographique_Y_(BAN)"] as number | undefined) ?? undefined;
-    const lng = (r["Coordonnée_cartographique_X_(BAN)"] as number | undefined) ?? undefined;
+    // ADEME stocke les coords en Lambert 93 (EPSG:2154) — il FAUT convertir en WGS84
+    const x = r.coordonnee_cartographique_x_ban as number | undefined;
+    const y = r.coordonnee_cartographique_y_ban as number | undefined;
+    let lat: number | undefined;
+    let lng: number | undefined;
+    if (x != null && y != null) {
+      if (Math.abs(x) <= 180 && Math.abs(y) <= 90) {
+        // déjà WGS84
+        lat = y;
+        lng = x;
+      } else {
+        const wgs = lambert93ToWgs84(x, y);
+        lat = wgs.lat;
+        lng = wgs.lng;
+      }
+    }
     return {
-      numero_dpe: r["N°DPE"] as string | undefined,
-      etiquette_dpe: r["Etiquette_DPE"] as string | undefined,
-      etiquette_ges: r["Etiquette_GES"] as string | undefined,
-      conso_5_usages_par_m2_finale: r["Conso_5_usages_par_m__finale"] as number | undefined,
-      emission_ges_5_usages_par_m2: r["Emission_GES_5_usages_par_m_"] as number | undefined,
-      surface_habitable_logement: r["Surface_habitable_logement"] as number | undefined,
-      date_etablissement_dpe: r["Date_établissement_DPE"] as string | undefined,
-      adresse_ban: r["Adresse_(BAN)"] as string | undefined,
-      code_postal_ban: r["Code_postal_(BAN)"] as string | undefined,
-      nom_commune_ban: r["Nom__commune_(BAN)"] as string | undefined,
-      type_batiment: r["Type_bâtiment"] as string | undefined,
-      annee_construction: r["Année_construction"] as number | undefined,
+      numero_dpe: r.numero_dpe as string | undefined,
+      etiquette_dpe: r.etiquette_dpe as string | undefined,
+      etiquette_ges: r.etiquette_ges as string | undefined,
+      conso_5_usages_par_m2_finale: r.conso_5_usages_par_m2_ep as number | undefined,
+      emission_ges_5_usages_par_m2: r.emission_ges_5_usages_par_m2 as number | undefined,
+      surface_habitable_logement: r.surface_habitable_logement as number | undefined,
+      date_etablissement_dpe: r.date_etablissement_dpe as string | undefined,
+      adresse_ban: r.adresse_ban as string | undefined,
+      code_postal_ban: r.code_postal_ban as string | undefined,
+      nom_commune_ban: r.nom_commune_ban as string | undefined,
+      type_batiment: r.type_batiment as string | undefined,
+      annee_construction: r.annee_construction as number | undefined,
       lat,
       lng,
       raw: r,
@@ -159,4 +164,36 @@ export function formatAdemeAddress(m: AdemeListingMatch): string {
     `${m.code_postal_ban ?? ""} ${m.nom_commune_ban ?? ""}`.trim() ||
     "Adresse inconnue"
   );
+}
+
+/**
+ * Lambert 93 (EPSG:2154) → WGS84 (lat/lng).
+ * Précision suffisante pour Maps / Street View (quelques mètres).
+ */
+function lambert93ToWgs84(x: number, y: number): { lat: number; lng: number } {
+  const n = 0.7256077650532670;
+  const c = 11754255.4261;
+  const xs = 700000;
+  const ys = 12655612.0499;
+  const e = 0.0818191910428158;
+
+  const dx = x - xs;
+  const dy = y - ys;
+  const r = Math.sqrt(dx * dx + dy * dy);
+  const gamma = Math.atan(-dx / dy);
+  const lng = gamma / n + (3 * Math.PI) / 180;
+  const latIso = -Math.log(Math.abs(r / c)) / n;
+
+  let phi = 2 * Math.atan(Math.exp(latIso)) - Math.PI / 2;
+  for (let i = 0; i < 8; i++) {
+    const eSinPhi = e * Math.sin(phi);
+    phi =
+      2 *
+        Math.atan(
+          Math.pow((1 + eSinPhi) / (1 - eSinPhi), e / 2) * Math.exp(latIso)
+        ) -
+      Math.PI / 2;
+  }
+
+  return { lat: (phi * 180) / Math.PI, lng: (lng * 180) / Math.PI };
 }
