@@ -1,0 +1,14 @@
+{
+  "name": "agent-immobilier-geoloc",
+  "version": "1.0.0",
+  "description": "Agent IA de géolocalisation immobilière via API ADEME DPE",
+  "main": "agent-immobilier.js",
+  "scripts": {
+    "agent": "node agent-immobilier.js",
+    "server": "node server-agent.js",
+    "test": "node test-recherche.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  }
+}

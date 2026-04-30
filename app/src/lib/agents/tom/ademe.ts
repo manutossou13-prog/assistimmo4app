@@ -1,49 +1,54 @@
 /**
  * ADEME — API DPE (logements existants depuis juillet 2021).
- * Source officielle : https://data.ademe.fr/data-fair/api/v1/datasets/meg-83tjwtg8dyz4vv7h1dqe
- * Public, gratuit, pas de clé requise. Mis à jour quotidiennement.
+ * Source officielle : https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant
+ * Public, gratuit, pas de clé requise. ~600 req/min.
  *
- * Pour les biens construits avant juillet 2021 sans DPE renouvelé, le dataset
- * "dpe-france" peut être utilisé en fallback (mais nombreux DPE expirés).
+ * Approche dérivée de parcellai.re : filtrage par CODE POSTAL (exact match BAN)
+ * pour des résultats fiables, scoring numérique sur conso/GES/surface/date.
+ *
+ * Note : ce dataset utilise des noms de champs avec accents et parenthèses
+ * (héritage du standard officiel ADEME). On les conserve tels quels et
+ * on remappe en interne vers des noms TS-friendly.
  */
 
-const ADEME_DATASET = "meg-83tjwtg8dyz4vv7h1dqe";
+const ADEME_DATASET = "dpe03existant";
 const ADEME_BASE = `https://data.ademe.fr/data-fair/api/v1/datasets/${ADEME_DATASET}/lines`;
+const GEOPF_GEOCODE = "https://data.geopf.fr/geocodage/search";
 
 const SELECT_FIELDS = [
-  "numero_dpe",
-  "date_etablissement_dpe",
-  "etiquette_dpe",
-  "etiquette_ges",
-  "surface_habitable_logement",
-  "type_batiment",
-  "annee_construction",
-  "adresse_ban",
-  "numero_voie_ban",
-  "nom_rue_ban",
-  "nom_commune_ban",
-  "code_postal_ban",
-  "complement_adresse_logement",
-  "conso_5_usages_par_m2_ep",
-  "emission_ges_5_usages_par_m2",
+  "N°DPE",
+  "Etiquette_DPE",
+  "Etiquette_GES",
+  "Conso_5_usages_par_m__finale", // kWh/m²/an
+  "Emission_GES_5_usages_par_m_", // kg CO₂/m²/an
+  "Surface_habitable_logement",
+  "Date_établissement_DPE",
+  "Adresse_(BAN)",
+  "Code_postal_(BAN)",
+  "Nom__commune_(BAN)",
+  "Type_bâtiment",
+  "Année_construction",
+  "Coordonnée_cartographique_X_(BAN)",
+  "Coordonnée_cartographique_Y_(BAN)",
 ].join(",");
 
 export type AdemeListingMatch = {
   numero_dpe?: string;
-  date_etablissement_dpe?: string;
-  etiquette_dpe?: string; // A..G
+  etiquette_dpe?: string;
   etiquette_ges?: string;
+  conso_5_usages_par_m2_finale?: number; // kWh/m²/an
+  emission_ges_5_usages_par_m2?: number; // kg CO₂/m²/an
   surface_habitable_logement?: number;
+  date_etablissement_dpe?: string;
+  adresse_ban?: string;
+  code_postal_ban?: string;
+  nom_commune_ban?: string;
   type_batiment?: string;
   annee_construction?: number;
-  adresse_ban?: string;
-  numero_voie_ban?: string;
-  nom_rue_ban?: string;
-  nom_commune_ban?: string;
-  code_postal_ban?: string;
-  complement_adresse_logement?: string;
-  conso_5_usages_par_m2_ep?: number; // kWh/m²/an (énergie primaire)
-  emission_ges_5_usages_par_m2?: number; // kg CO2/m²/an
+  lat?: number; // coords directement dans le dataset
+  lng?: number;
+  numero_voie_ban?: string; // legacy / vide
+  nom_rue_ban?: string; // legacy / vide
   raw: Record<string, unknown>;
 };
 
@@ -51,27 +56,61 @@ export type AdemeQuery = {
   city?: string;
   zipcode?: string;
   dpe_letter?: string;
-  surface_min?: number;
-  surface_max?: number;
+  ges_letter?: string;
+  type_batiment?: "maison" | "appartement" | "immeuble";
   size?: number;
 };
 
-export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMatch[]> {
-  const params = new URLSearchParams();
-  params.set("size", String(query.size ?? 30));
-  params.set("select", SELECT_FIELDS);
+/**
+ * Résout un nom de ville en code postal via la Géoplateforme IGN (gratuit, sans clé).
+ */
+export async function resolveZipcodeFromCity(city: string): Promise<string | null> {
+  try {
+    const url = `${GEOPF_GEOCODE}?q=${encodeURIComponent(city)}&limit=1&type=municipality`;
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      features?: Array<{ properties?: { postcode?: string } }>;
+    };
+    return data.features?.[0]?.properties?.postcode ?? null;
+  } catch {
+    return null;
+  }
+}
 
-  const filters: string[] = [];
-  if (query.city) filters.push(`nom_commune_ban:"${escapeQs(query.city)}"`);
-  if (query.zipcode) filters.push(`code_postal_ban:${query.zipcode}`);
-  if (query.dpe_letter) filters.push(`etiquette_dpe:${query.dpe_letter}`);
-  if (query.surface_min !== undefined || query.surface_max !== undefined) {
-    const lo = query.surface_min ?? "*";
-    const hi = query.surface_max ?? "*";
-    filters.push(`surface_habitable_logement:[${lo} TO ${hi}]`);
+export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMatch[]> {
+  let zipcode = query.zipcode ?? null;
+
+  if (!zipcode && query.city) {
+    zipcode = await resolveZipcodeFromCity(query.city);
   }
 
-  if (filters.length > 0) params.set("qs", filters.join(" AND "));
+  if (!zipcode) {
+    throw new Error(
+      `Impossible de résoudre la ville "${query.city ?? "?"}" en code postal. Fournis le code postal directement.`
+    );
+  }
+
+  const filtres: string[] = [];
+  filtres.push(`Code_postal_(BAN):"${zipcode}"`);
+
+  if (query.dpe_letter) filtres.push(`Etiquette_DPE:"${query.dpe_letter}"`);
+  if (query.ges_letter) filtres.push(`Etiquette_GES:"${query.ges_letter}"`);
+
+  if (query.type_batiment) {
+    const mapping: Record<string, string> = {
+      maison: "Maison",
+      appartement: "Appartement",
+      immeuble: "Immeuble",
+    };
+    const tb = mapping[query.type_batiment];
+    if (tb) filtres.push(`Type_bâtiment:"${tb}"`);
+  }
+
+  const params = new URLSearchParams();
+  params.set("qs", filtres.join(" AND "));
+  params.set("size", String(query.size ?? 200));
+  params.set("select", SELECT_FIELDS);
 
   const url = `${ADEME_BASE}?${params.toString()}`;
 
@@ -91,33 +130,33 @@ export async function searchAdemeDpe(query: AdemeQuery): Promise<AdemeListingMat
   const data = (await res.json()) as { results?: Record<string, unknown>[] };
   const results = Array.isArray(data.results) ? data.results : [];
 
-  return results.map((r) => ({
-    numero_dpe: r.numero_dpe as string | undefined,
-    date_etablissement_dpe: r.date_etablissement_dpe as string | undefined,
-    etiquette_dpe: r.etiquette_dpe as string | undefined,
-    etiquette_ges: r.etiquette_ges as string | undefined,
-    surface_habitable_logement: r.surface_habitable_logement as number | undefined,
-    type_batiment: r.type_batiment as string | undefined,
-    annee_construction: r.annee_construction as number | undefined,
-    adresse_ban: r.adresse_ban as string | undefined,
-    numero_voie_ban: r.numero_voie_ban as string | undefined,
-    nom_rue_ban: r.nom_rue_ban as string | undefined,
-    nom_commune_ban: r.nom_commune_ban as string | undefined,
-    code_postal_ban: r.code_postal_ban as string | undefined,
-    complement_adresse_logement: r.complement_adresse_logement as string | undefined,
-    conso_5_usages_par_m2_ep: r.conso_5_usages_par_m2_ep as number | undefined,
-    emission_ges_5_usages_par_m2: r.emission_ges_5_usages_par_m2 as number | undefined,
-    raw: r,
-  }));
-}
-
-function escapeQs(value: string): string {
-  return value.replace(/"/g, '\\"');
+  return results.map((r) => {
+    const lat = (r["Coordonnée_cartographique_Y_(BAN)"] as number | undefined) ?? undefined;
+    const lng = (r["Coordonnée_cartographique_X_(BAN)"] as number | undefined) ?? undefined;
+    return {
+      numero_dpe: r["N°DPE"] as string | undefined,
+      etiquette_dpe: r["Etiquette_DPE"] as string | undefined,
+      etiquette_ges: r["Etiquette_GES"] as string | undefined,
+      conso_5_usages_par_m2_finale: r["Conso_5_usages_par_m__finale"] as number | undefined,
+      emission_ges_5_usages_par_m2: r["Emission_GES_5_usages_par_m_"] as number | undefined,
+      surface_habitable_logement: r["Surface_habitable_logement"] as number | undefined,
+      date_etablissement_dpe: r["Date_établissement_DPE"] as string | undefined,
+      adresse_ban: r["Adresse_(BAN)"] as string | undefined,
+      code_postal_ban: r["Code_postal_(BAN)"] as string | undefined,
+      nom_commune_ban: r["Nom__commune_(BAN)"] as string | undefined,
+      type_batiment: r["Type_bâtiment"] as string | undefined,
+      annee_construction: r["Année_construction"] as number | undefined,
+      lat,
+      lng,
+      raw: r,
+    };
+  });
 }
 
 export function formatAdemeAddress(m: AdemeListingMatch): string {
-  if (m.adresse_ban) return m.adresse_ban;
-  const parts = [m.numero_voie_ban, m.nom_rue_ban].filter(Boolean).join(" ").trim();
-  const cp = [m.code_postal_ban, m.nom_commune_ban].filter(Boolean).join(" ");
-  return [parts, cp].filter(Boolean).join(", ") || "Adresse inconnue";
+  return (
+    m.adresse_ban ||
+    `${m.code_postal_ban ?? ""} ${m.nom_commune_ban ?? ""}`.trim() ||
+    "Adresse inconnue"
+  );
 }

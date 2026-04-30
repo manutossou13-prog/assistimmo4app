@@ -229,14 +229,14 @@ function scoreCandidate(
   // ============================================================
 
   // Conso énergie kWh/m²/an (poids 30 — quasi-empreinte digitale du logement)
-  if (extraction.conso_ep && m.conso_5_usages_par_m2_ep) {
-    const diff = Math.abs(extraction.conso_ep - m.conso_5_usages_par_m2_ep);
+  if (extraction.conso_ep && m.conso_5_usages_par_m2_finale) {
+    const diff = Math.abs(extraction.conso_ep - m.conso_5_usages_par_m2_finale);
     if (diff <= 3) {
       score += 30;
-      reasons.push(`Conso ${m.conso_5_usages_par_m2_ep} kWh/m²/an (match)`);
+      reasons.push(`Conso ${m.conso_5_usages_par_m2_finale} kWh/m²/an (match)`);
     } else if (diff <= 10) {
       score += 18;
-      reasons.push(`Conso ${m.conso_5_usages_par_m2_ep} kWh (écart ${diff.toFixed(0)})`);
+      reasons.push(`Conso ${m.conso_5_usages_par_m2_finale} kWh (écart ${diff.toFixed(0)})`);
     } else if (diff <= 25) {
       score += 5;
     }
@@ -279,27 +279,30 @@ function scoreCandidate(
   // SIGNAUX FORTS (mention explicite rue)
   // ============================================================
 
-  if (extraction.street_hint && m.nom_rue_ban) {
+  // Match nom de rue contre l'adresse complète (le dataset dpe03existant ne sépare plus rue/numéro)
+  if (extraction.street_hint && m.adresse_ban) {
     const e = normalize(extraction.street_hint);
-    const a = normalize(m.nom_rue_ban);
+    const a = normalize(m.adresse_ban);
     if (e && a) {
       const stripPrefix = (x: string) =>
         x.replace(/^(rue|avenue|av|boulevard|bd|bvd|allee|allée|impasse|chemin|place|cours|quai|route|rte) /, "");
       const eClean = stripPrefix(e);
-      const aClean = stripPrefix(a);
-      if (eClean === aClean || aClean.includes(eClean) || eClean.includes(aClean)) {
+      // L'adresse BAN contient le numéro + rue + CP + ville → on cherche la rue dedans
+      if (a.includes(eClean) || a.includes(e)) {
         score += 30;
-        reasons.push(`Rue ${m.nom_rue_ban}`);
+        reasons.push(`Rue mentionnée matche adresse BAN`);
       }
     }
   }
 
-  if (extraction.street_number_hint && m.numero_voie_ban) {
-    const e = String(extraction.street_number_hint).replace(/\s/g, "").toLowerCase();
-    const a = String(m.numero_voie_ban).replace(/\s/g, "").toLowerCase();
-    if (e && a && (e === a || a.startsWith(e) || e.startsWith(a))) {
+  // Match numéro de rue dans adresse_ban
+  if (extraction.street_number_hint && m.adresse_ban) {
+    const num = String(extraction.street_number_hint).replace(/\s/g, "").toLowerCase();
+    const adr = m.adresse_ban.toLowerCase();
+    // L'adresse BAN commence typiquement par le numéro
+    if (num && (adr.startsWith(num + " ") || adr.startsWith(num + "bis ") || adr.startsWith(num + "ter "))) {
       score += 18;
-      reasons.push(`N° ${m.numero_voie_ban}`);
+      reasons.push(`N° ${num}`);
     }
   }
 
@@ -473,16 +476,23 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
     };
   }
 
-  // ADEME query — élargir si valeurs numériques (plus discriminant ensuite)
+  // ADEME query — filtrage par CP exact + lettres DPE/GES + type bâtiment
+  const typeBatiment: "maison" | "appartement" | "immeuble" | undefined =
+    extraction.type === "house"
+      ? "maison"
+      : extraction.type === "apartment"
+        ? "appartement"
+        : undefined;
+
   let matches: AdemeListingMatch[] = [];
   try {
     matches = await searchAdemeDpe({
       city: extraction.city,
       zipcode: extraction.zipcode ?? undefined,
       dpe_letter: extraction.dpe_letter ?? undefined,
-      surface_min: extraction.surface_habitable ? Math.max(0, extraction.surface_habitable - 5) : undefined,
-      surface_max: extraction.surface_habitable ? extraction.surface_habitable + 5 : undefined,
-      size: 80,
+      ges_letter: extraction.ges_letter ?? undefined,
+      type_batiment: typeBatiment,
+      size: 200,
     });
   } catch (err) {
     console.error("[TOM] ADEME error:", err);
@@ -498,13 +508,18 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
 
-  // Enrichissement : géocodage + cadastre pour le top 8 en parallèle
+  // Enrichissement : cadastre pour le top 8 (les coords sont déjà dans la réponse ADEME)
   const enriched = await Promise.all(
     preScored.map(async (s) => {
       const address = formatAdemeAddress(s.match);
-      const geo = await geocodeBan(address, s.match.code_postal_ban);
+      const lat = s.match.lat;
+      const lng = s.match.lng;
+      const geo: GeocodeResult | null =
+        lat != null && lng != null
+          ? { lat, lng, label: address, postcode: s.match.code_postal_ban, city: s.match.nom_commune_ban, score: 1 }
+          : await geocodeBan(address, s.match.code_postal_ban);
+
       const parcelle = geo ? await getParcelleAt(geo.lat, geo.lng) : null;
-      // Re-score avec cadastre si dispo
       const final = parcelle
         ? scoreCandidate(extraction, s.match, parcelle)
         : { score: s.score, reasons: s.reasons };
@@ -512,7 +527,6 @@ export async function runTomManual(input: TomManualInput): Promise<TomResult> {
     })
   );
 
-  // Top 5 après cadastre
   const finalSorted = enriched
     .filter((e) => e.score >= 30)
     .sort((a, b) => b.score - a.score)
@@ -578,16 +592,22 @@ export async function runTom(input: string): Promise<TomResult> {
   }
 
   // Étape 2 : ADEME query — élargie si surface_habitable connue (±5m² au lieu de ±3)
-  // pour ne pas rater le bon candidat à cause d'un m² d'écart de mesure
+  const typeBatimentUrl: "maison" | "appartement" | "immeuble" | undefined =
+    extraction.type === "house"
+      ? "maison"
+      : extraction.type === "apartment"
+        ? "appartement"
+        : undefined;
+
   let matches: AdemeListingMatch[] = [];
   try {
     matches = await searchAdemeDpe({
       city: extraction.city,
       zipcode: extraction.zipcode ?? undefined,
       dpe_letter: extraction.dpe_letter ?? undefined,
-      surface_min: extraction.surface_habitable ? Math.max(0, extraction.surface_habitable - 5) : undefined,
-      surface_max: extraction.surface_habitable ? extraction.surface_habitable + 5 : undefined,
-      size: 50,
+      ges_letter: extraction.ges_letter ?? undefined,
+      type_batiment: typeBatimentUrl,
+      size: 200,
     });
   } catch (err) {
     console.error("[TOM] ADEME error:", err);
@@ -611,11 +631,16 @@ export async function runTom(input: string): Promise<TomResult> {
     source_match: s.match,
   }));
 
-  // Étape 4 : géocodage du top 3 + URLs visuelles (en parallèle, best-effort)
+  // Étape 4 : enrichissement (coords directes ADEME + cadastre top 3)
   const candidates: AddressCandidate[] = await Promise.all(
     baseCandidates.map(async (c) => {
       if (c.rank > 3) return { ...c, geo: null, visuals: null, parcelle: null };
-      const geo = await geocodeBan(c.address, c.source_match.code_postal_ban);
+      const lat = c.source_match.lat;
+      const lng = c.source_match.lng;
+      const geo: GeocodeResult | null =
+        lat != null && lng != null
+          ? { lat, lng, label: c.address, postcode: c.source_match.code_postal_ban, city: c.source_match.nom_commune_ban, score: 1 }
+          : await geocodeBan(c.address, c.source_match.code_postal_ban);
       const visuals = geo ? buildLocationVisuals(geo.lat, geo.lng) : null;
       const parcelle = geo ? await getParcelleAt(geo.lat, geo.lng) : null;
       return { ...c, geo, visuals, parcelle };
